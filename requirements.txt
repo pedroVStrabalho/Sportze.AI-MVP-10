@@ -1,0 +1,8 @@
+streamlit==1.33.0
+pandas
+numpy
+opencv-python-headless
+mediapipe
+Pillow
+requests
+python-dateutil
