@@ -1,3 +1,7 @@
+from training_generator_section import run_training_generator
+from counselling_section import run_counselling
+from video_review_section import run_video_review
+from physio_section import run_physio
 import streamlit as st
 import random
 import re
@@ -4514,13 +4518,24 @@ def generate_volleyball_plan(role, goal, level, injury_status, pain_score, sessi
 # =========================
 # TOP NAVIGATION
 # =========================
-st.session_state.active_section = st.radio(
-    "Choose section",
-    SECTION_OPTIONS,
-    index=SECTION_OPTIONS.index(st.session_state.active_section),
-    horizontal=True,
-)
+section = st.sidebar.selectbox("Choose Section", [
+    "Training Generator",
+    "Video Review",
+    "Counselling",
+    "Physio"
+])
 
+if section == "Training Generator":
+    run_training_generator()
+
+elif section == "Video Review":
+    run_video_review()
+
+elif section == "Counselling":
+    run_counselling()
+
+elif section == "Physio":
+    run_physio()
 # =========================
 # SECTION 1 — TRAINING GENERATOR
 # =========================
