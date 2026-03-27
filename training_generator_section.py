@@ -272,7 +272,7 @@ def render_training_generator_section() -> None:
         goal = st.selectbox("Main goal", GOALS)
         level = st.selectbox("Current level", LEVELS)
     with c2:
-        weekly_frequency = st.slider(get_frequency_prompt(goal, level), 1, 14, 4)
+        weekly_frequency = st.slider(get_frequency_prompt(goal, level), 1, 7, 4)
         session_type = st.selectbox("Session type", SESSION_TYPES)
         duration = st.slider("Session duration (minutes)", 30, 180, 75, step=5)
         available_equipment = st.multiselect(
