@@ -1,330 +1,141 @@
-import os
-import cv2
-import math
-import time
 import tempfile
-import statistics
+from typing import Dict, List
+
 import streamlit as st
-import mediapipe as mp
 
-# =========================
-# MEDIAPIPE SETUP
-# =========================
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
+try:
+    import cv2
+except Exception:
+    cv2 = None
 
-
-def _calculate_angle(a, b, c):
-    """
-    Calculate angle ABC in degrees.
-    a, b, c = (x, y)
-    """
-    ax, ay = a
-    bx, by = b
-    cx, cy = c
-
-    ba = (ax - bx, ay - by)
-    bc = (cx - bx, cy - by)
-
-    dot = ba[0] * bc[0] + ba[1] * bc[1]
-    mag_ba = math.sqrt(ba[0] ** 2 + ba[1] ** 2)
-    mag_bc = math.sqrt(bc[0] ** 2 + bc[1] ** 2)
-
-    if mag_ba == 0 or mag_bc == 0:
-        return None
-
-    cos_angle = max(-1.0, min(1.0, dot / (mag_ba * mag_bc)))
-    angle = math.degrees(math.acos(cos_angle))
-    return angle
+try:
+    import mediapipe as mp
+except Exception:
+    mp = None
 
 
-def _landmark_xy(landmarks, idx, width, height):
-    lm = landmarks[idx]
-    return (int(lm.x * width), int(lm.y * height))
+SPORT_MOVEMENT_KEYS: Dict[str, List[str]] = {
+    "Tennis": ["Split step timing", "Contact point height", "Hip-shoulder rotation", "Recovery footwork"],
+    "Soccer": ["First step explosiveness", "Body angle when turning", "Knee drive", "Balance during striking"],
+    "Basketball": ["Change of direction posture", "Landing mechanics", "Ball protection", "Shot alignment"],
+    "Volleyball": ["Approach timing", "Arm swing path", "Landing control", "Block hand position"],
+    "Running": ["Cadence", "Foot strike", "Arm swing", "Posture"],
+    "General": ["Posture", "Symmetry", "Joint control", "Tempo"],
+}
 
 
-def _safe_visibility(landmarks, idx, threshold=0.50):
-    return landmarks[idx].visibility >= threshold
+def _get_pose_estimator():
+    if mp is None:
+        return None, "MediaPipe is not installed in this environment."
+
+    # Works with modern mediapipe package layout
+    pose_cls = None
+    drawing_utils = None
+
+    try:
+        pose_cls = mp.solutions.pose.Pose
+        drawing_utils = mp.solutions.drawing_utils
+    except Exception:
+        try:
+            from mediapipe.python.solutions.pose import Pose as PoseAlt
+            from mediapipe.python.solutions import drawing_utils as drawing_utils_alt
+            pose_cls = PoseAlt
+            drawing_utils = drawing_utils_alt
+        except Exception as exc:
+            return None, f"MediaPipe import failed: {exc}"
+
+    return {"pose_cls": pose_cls, "drawing_utils": drawing_utils}, None
 
 
-def _analyze_frame_pose(landmarks, width, height):
-    """
-    Extract simple biomechanical indicators from one frame.
-    Returns dict with angles if available.
-    """
-    L = mp_pose.PoseLandmark
 
-    needed = [
-        L.LEFT_SHOULDER.value,
-        L.RIGHT_SHOULDER.value,
-        L.LEFT_ELBOW.value,
-        L.RIGHT_ELBOW.value,
-        L.LEFT_WRIST.value,
-        L.RIGHT_WRIST.value,
-        L.LEFT_HIP.value,
-        L.RIGHT_HIP.value,
-        L.LEFT_KNEE.value,
-        L.RIGHT_KNEE.value,
-        L.LEFT_ANKLE.value,
-        L.RIGHT_ANKLE.value,
+def analyze_video_basic(video_path: str, max_frames: int = 24):
+    if cv2 is None:
+        return None, ["OpenCV is not installed in this environment."]
+
+    estimator, err = _get_pose_estimator()
+    if err:
+        return None, [err]
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None, ["Could not open the uploaded video."]
+
+    pose = estimator["pose_cls"](static_image_mode=False, min_detection_confidence=0.5, min_tracking_confidence=0.5)
+
+    frame_count = 0
+    detected_frames = 0
+    sample_image = None
+
+    while cap.isOpened() and frame_count < max_frames:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        frame_count += 1
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(rgb)
+        if results.pose_landmarks:
+            detected_frames += 1
+            sample_image = rgb
+
+    cap.release()
+    pose.close()
+
+    observations = [
+        f"Frames checked: {frame_count}",
+        f"Frames with pose landmarks detected: {detected_frames}",
     ]
+    if detected_frames == 0:
+        observations.append("No clear body landmarks were detected. Use a brighter video, full-body angle, and a more stable camera.")
+    elif detected_frames < max(4, frame_count // 3):
+        observations.append("Pose detection was inconsistent. Try a cleaner background and keep the whole body visible.")
+    else:
+        observations.append("Pose detection worked reasonably well on the sampled frames.")
 
-    for idx in needed:
-        if not _safe_visibility(landmarks, idx):
-            return {}
-
-    left_shoulder = _landmark_xy(landmarks, L.LEFT_SHOULDER.value, width, height)
-    right_shoulder = _landmark_xy(landmarks, L.RIGHT_SHOULDER.value, width, height)
-    left_elbow = _landmark_xy(landmarks, L.LEFT_ELBOW.value, width, height)
-    right_elbow = _landmark_xy(landmarks, L.RIGHT_ELBOW.value, width, height)
-    left_wrist = _landmark_xy(landmarks, L.LEFT_WRIST.value, width, height)
-    right_wrist = _landmark_xy(landmarks, L.RIGHT_WRIST.value, width, height)
-    left_hip = _landmark_xy(landmarks, L.LEFT_HIP.value, width, height)
-    right_hip = _landmark_xy(landmarks, L.RIGHT_HIP.value, width, height)
-    left_knee = _landmark_xy(landmarks, L.LEFT_KNEE.value, width, height)
-    right_knee = _landmark_xy(landmarks, L.RIGHT_KNEE.value, width, height)
-    left_ankle = _landmark_xy(landmarks, L.LEFT_ANKLE.value, width, height)
-    right_ankle = _landmark_xy(landmarks, L.RIGHT_ANKLE.value, width, height)
-
-    data = {}
-
-    # Elbow angles
-    data["left_elbow_angle"] = _calculate_angle(left_shoulder, left_elbow, left_wrist)
-    data["right_elbow_angle"] = _calculate_angle(right_shoulder, right_elbow, right_wrist)
-
-    # Knee angles
-    data["left_knee_angle"] = _calculate_angle(left_hip, left_knee, left_ankle)
-    data["right_knee_angle"] = _calculate_angle(right_hip, right_knee, right_ankle)
-
-    # Hip angles
-    data["left_hip_angle"] = _calculate_angle(left_shoulder, left_hip, left_knee)
-    data["right_hip_angle"] = _calculate_angle(right_shoulder, right_hip, right_knee)
-
-    # Shoulder line balance
-    shoulder_diff = abs(left_shoulder[1] - right_shoulder[1])
-    data["shoulder_balance_px"] = shoulder_diff
-
-    # Hip line balance
-    hip_diff = abs(left_hip[1] - right_hip[1])
-    data["hip_balance_px"] = hip_diff
-
-    return data
+    return sample_image, observations
 
 
-def _summarize_metrics(all_metrics, sport):
-    """
-    Simple coaching summary from collected frame metrics.
-    """
-    if not all_metrics:
-        return {
-            "summary": "No reliable body landmarks were detected often enough to produce feedback.",
-            "tips": [
-                "Upload a brighter video.",
-                "Use a side or front angle with the full body visible.",
-                "Avoid heavy occlusion.",
-            ],
-        }
 
-    def avg(key):
-        vals = [m[key] for m in all_metrics if key in m and m[key] is not None]
-        return round(statistics.mean(vals), 1) if vals else None
-
-    left_knee = avg("left_knee_angle")
-    right_knee = avg("right_knee_angle")
-    left_hip = avg("left_hip_angle")
-    right_hip = avg("right_hip_angle")
-    shoulder_balance = avg("shoulder_balance_px")
-    hip_balance = avg("hip_balance_px")
-
-    tips = []
-
-    if shoulder_balance is not None and shoulder_balance > 25:
-        tips.append("Upper body looks uneven at times. Try to keep shoulders more level through the movement.")
-
-    if hip_balance is not None and hip_balance > 25:
-        tips.append("Hip line shifts noticeably. Focus on balance and trunk control.")
-
-    if left_knee is not None and left_knee < 135:
-        tips.append("Left knee bend is relatively deep. Make sure the movement stays controlled and stable.")
-
-    if right_knee is not None and right_knee < 135:
-        tips.append("Right knee bend is relatively deep. Keep knee tracking aligned over the foot.")
-
-    if left_hip is not None and left_hip < 130:
-        tips.append("Left hip angle suggests a lower loaded position. Maintain core tension to avoid collapsing.")
-
-    if right_hip is not None and right_hip < 130:
-        tips.append("Right hip angle suggests a lower loaded position. Keep posture strong through the trunk.")
-
-    if sport == "Tennis":
-        tips.append("For tennis, try recording from the side on serves and from behind on groundstrokes for better review.")
-    elif sport == "Soccer":
-        tips.append("For soccer, use clips with full-body shooting, sprinting, or change-of-direction actions.")
-    elif sport == "Basketball":
-        tips.append("For basketball, lateral defense and jump-stop clips usually give cleaner movement feedback.")
-    elif sport == "Surfing":
-        tips.append("For surfing, pop-up and stance clips on land are easier to analyze than water footage.")
-    elif sport == "Water Polo":
-        tips.append("Water polo is harder for pose tracking because of water occlusion, so dry-land movement clips work better.")
-
-    if not tips:
-        tips = [
-            "Movement looked generally stable in the sampled frames.",
-            "Try a closer angle or a more specific action clip for more useful feedback.",
-        ]
-
-    summary = (
-        f"Processed movement successfully. "
-        f"Avg shoulder imbalance: {shoulder_balance}px, "
-        f"avg hip imbalance: {hip_balance}px, "
-        f"avg knee angles: L {left_knee}°, R {right_knee}°."
-    )
-
-    return {
-        "summary": summary,
-        "tips": tips,
-    }
-
-
-def run_video_review():
+def render_video_review_section() -> None:
     st.header("Video Review")
+    st.write("Upload a video and get a basic movement review workflow with OpenCV + MediaPipe support.")
 
-    st.write("Upload a sports video and get basic pose-based feedback.")
+    sport = st.selectbox("Sport for the review", list(SPORT_MOVEMENT_KEYS.keys()))
+    focus = st.multiselect("What do you want to review?", SPORT_MOVEMENT_KEYS[sport], default=SPORT_MOVEMENT_KEYS[sport][:2])
+    uploaded = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "m4v"])
 
-    sport = st.selectbox(
-        "Which sport is this clip for?",
-        ["Tennis", "Soccer", "Basketball", "Water Polo", "Surfing", "General"]
-    )
+    st.caption("Best results: bright environment, stable camera, full body visible, side or front angle depending on the sport.")
 
-    uploaded_video = st.file_uploader("Upload your video", type=["mp4", "mov", "avi", "m4v"])
+    if uploaded is not None:
+        st.video(uploaded)
 
-    sample_every_n_frames = st.slider("Analyze every Nth frame", 1, 5, 2)
-    draw_landmarks = st.checkbox("Draw pose landmarks on output video", value=True)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            tmp.write(uploaded.read())
+            temp_path = tmp.name
 
-    if uploaded_video is not None:
-        st.video(uploaded_video)
+        if st.button("Analyze Video", type="primary", use_container_width=True):
+            image, observations = analyze_video_basic(temp_path)
 
-    if uploaded_video is not None and st.button("Run Video Analysis"):
-        with st.spinner("Processing video with OpenCV + MediaPipe..."):
-            input_temp_path = None
-            output_temp_path = None
+            st.subheader("System observations")
+            for item in observations:
+                st.write(f"- {item}")
 
-            try:
-                # Save uploaded file to temp file
-                suffix = os.path.splitext(uploaded_video.name)[1] or ".mp4"
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_in:
-                    tmp_in.write(uploaded_video.read())
-                    input_temp_path = tmp_in.name
+            if image is not None:
+                st.image(image, caption="Sample detected frame", use_container_width=True)
 
-                cap = cv2.VideoCapture(input_temp_path)
-                if not cap.isOpened():
-                    st.error("Could not open the uploaded video.")
-                    return
+            st.subheader("Coach review checklist")
+            for item in focus:
+                st.write(f"- Check: **{item}**")
 
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                if fps <= 0:
-                    fps = 25.0
+            st.subheader("Practical feedback template")
+            feedback = {
+                "Tennis": "Look for balance before contact, spacing to the ball, and whether recovery steps start immediately after the hit.",
+                "Soccer": "Check the plant foot, trunk angle, first step reaction, and whether the athlete stays balanced through the action.",
+                "Basketball": "Check deceleration posture, knee alignment on landing, chest position, and whether the hips stay loaded in direction changes.",
+                "Volleyball": "Look at approach rhythm, penultimate step, arm action, and landing symmetry.",
+                "Running": "Review posture, cadence rhythm, overstriding signs, and arm-leg coordination.",
+                "General": "Review posture, rhythm, joint control, and whether movement quality drops as fatigue rises.",
+            }
+            st.info(feedback[sport])
 
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-                # Output video path
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_out:
-                    output_temp_path = tmp_out.name
-
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                writer = cv2.VideoWriter(output_temp_path, fourcc, fps, (width, height))
-
-                all_metrics = []
-                frame_idx = 0
-                analyzed_frames = 0
-                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                progress = st.progress(0)
-
-                start_time = time.time()
-
-                with mp_pose.Pose(
-                    static_image_mode=False,
-                    model_complexity=1,
-                    smooth_landmarks=True,
-                    enable_segmentation=False,
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5,
-                ) as pose:
-
-                    while True:
-                        ret, frame = cap.read()
-                        if not ret:
-                            break
-
-                        frame_idx += 1
-                        output_frame = frame.copy()
-
-                        if frame_idx % sample_every_n_frames == 0:
-                            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                            results = pose.process(rgb)
-
-                            if results.pose_landmarks:
-                                analyzed_frames += 1
-
-                                metrics = _analyze_frame_pose(
-                                    results.pose_landmarks.landmark,
-                                    width,
-                                    height
-                                )
-                                if metrics:
-                                    all_metrics.append(metrics)
-
-                                if draw_landmarks:
-                                    mp_drawing.draw_landmarks(
-                                        output_frame,
-                                        results.pose_landmarks,
-                                        mp_pose.POSE_CONNECTIONS
-                                    )
-
-                        writer.write(output_frame)
-
-                        if total_frames > 0:
-                            progress.progress(min(frame_idx / total_frames, 1.0))
-
-                cap.release()
-                writer.release()
-
-                elapsed = round(time.time() - start_time, 2)
-
-                summary = _summarize_metrics(all_metrics, sport)
-
-                st.success(f"Analysis complete in {elapsed}s.")
-                st.write(f"Frames read: {frame_idx}")
-                st.write(f"Frames analyzed: {analyzed_frames}")
-                st.write(f"Useful metric frames: {len(all_metrics)}")
-
-                st.subheader("Feedback Summary")
-                st.write(summary["summary"])
-
-                st.subheader("Coaching Tips")
-                for tip in summary["tips"]:
-                    st.write(f"- {tip}")
-
-                st.subheader("Annotated Video")
-                with open(output_temp_path, "rb") as f:
-                    st.video(f.read())
-
-                st.caption(
-                    "This is a basic pose-based review. It is useful for movement screening, "
-                    "but it is not yet a full sport-specific biomechanics engine."
-                )
-
-            except Exception as e:
-                st.error(f"Video analysis failed: {e}")
-
-            finally:
-                if input_temp_path and os.path.exists(input_temp_path):
-                    try:
-                        os.remove(input_temp_path)
-                    except Exception:
-                        pass
-
-                if output_temp_path and os.path.exists(output_temp_path):
-                    # Keep file during session if Streamlit still needs it
-                    pass
+            if cv2 is None or mp is None:
+                st.warning("This environment is missing either OpenCV or MediaPipe, so only partial functionality is available.")
