@@ -1,6 +1,15 @@
-streamlit==1.39.0
-opencv-python-headless==4.10.0.84
-mediapipe==0.10.20
+streamlit==1.33.0
+
+# Core
 numpy==1.26.4
-pandas==2.2.3
-Pillow==10.4.0
+pandas==2.2.2
+
+# Video Review (CRITICAL)
+opencv-python==4.9.0.80
+mediapipe==0.10.14
+
+# Utilities
+pillow==10.3.0
+
+# Optional but recommended (performance & compatibility)
+protobuf==4.25.3
