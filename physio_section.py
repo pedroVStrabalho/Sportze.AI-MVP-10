@@ -1,19 +1,31 @@
 from __future__ import annotations
 
 import re
+import math
 from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
 import streamlit as st
+from PIL import Image
+
+try:
+    import cv2
+except Exception:
+    cv2 = None
+
+try:
+    import mediapipe as mp
+except Exception:
+    mp = None
 
 
 # ==========================================================
-# ADVANCED SPORTS PHYSIO / TRIAGE SECTION
+# ADVANCED SPORTS PHYSIO / TRIAGE SECTION WITH IMAGE REVIEW
 # - Keeps the original spirit of the current version
-# - Adds a much larger anatomical catalog
-# - Adds chat-style free-text "where does it hurt?"
-# - Adds optional image upload dropbox for pain-area review
-# - Adds sport-aware advice, stop rules, and load guidance
-# - Ready to be connected to APIs later, but works now offline
+# - Adds image analysis with OpenCV + MediaPipe
+# - Adds more visual feedback for pain-area review
+# - Keeps sport-aware advice, stop rules, and load guidance
+# - Ready for future API/vision upgrades
 # ==========================================================
 
 
@@ -482,6 +494,23 @@ GENERIC_SEARCH_TERMS = {
 }
 
 
+LANDMARK_NAMES = {
+    "nose": 0,
+    "left_shoulder": 11,
+    "right_shoulder": 12,
+    "left_elbow": 13,
+    "right_elbow": 14,
+    "left_wrist": 15,
+    "right_wrist": 16,
+    "left_hip": 23,
+    "right_hip": 24,
+    "left_knee": 25,
+    "right_knee": 26,
+    "left_ankle": 27,
+    "right_ankle": 28,
+}
+
+
 def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower())
 
@@ -576,19 +605,6 @@ def render_zone_summary(zone: Dict[str, Any]) -> None:
         st.write(f"- {item}")
 
 
-def render_uploaded_image_panel(uploaded_file) -> None:
-    st.subheader("Visual pain-area upload")
-    if uploaded_file is None:
-        st.caption("Optional: upload an image so the athlete can visually indicate the painful area. This version stores and previews the file, and is ready for future API-based image analysis.")
-        return
-
-    st.image(uploaded_file, caption="Uploaded area image", use_container_width=True)
-    st.info(
-        "Image received. In this offline version, the program previews the uploaded image and uses your written description for triage. "
-        "The structure is already ready for future API/vision integration so the image can later be analyzed automatically."
-    )
-
-
 def render_professional_escalation(onset: str, pain: int, red_flags: List[str], pain_type: str) -> None:
     st.write("**When to stop and get professional help:**")
     escalation_points = [
@@ -610,12 +626,232 @@ def render_professional_escalation(onset: str, pain: int, red_flags: List[str], 
         st.write(f"- {point}")
 
 
+def _get_pose_objects():
+    if mp is None:
+        return None, None, None, "MediaPipe is not installed in this environment."
+
+    try:
+        pose_cls = mp.solutions.pose.Pose
+        drawing_utils = mp.solutions.drawing_utils
+        pose_connections = mp.solutions.pose.POSE_CONNECTIONS
+        return pose_cls, drawing_utils, pose_connections, None
+    except Exception:
+        try:
+            from mediapipe.python.solutions.pose import Pose as PoseAlt
+            from mediapipe.python.solutions import drawing_utils as drawing_utils_alt
+            from mediapipe.python.solutions.pose import POSE_CONNECTIONS as pose_connections_alt
+            return PoseAlt, drawing_utils_alt, pose_connections_alt, None
+        except Exception as exc:
+            return None, None, None, f"MediaPipe import failed: {exc}"
+
+
+def _safe_point(landmarks, idx: int, visibility_threshold: float = 0.5) -> Optional[Tuple[float, float]]:
+    if landmarks is None or idx >= len(landmarks):
+        return None
+    lm = landmarks[idx]
+    vis = getattr(lm, "visibility", 1.0)
+    if vis < visibility_threshold:
+        return None
+    return (lm.x, lm.y)
+
+
+def _segment_angle_deg(p1, p2) -> Optional[float]:
+    if p1 is None or p2 is None:
+        return None
+    dx = p2[0] - p1[0]
+    dy = p2[1] - p1[1]
+    return math.degrees(math.atan2(dy, dx))
+
+
+def _distance(p1, p2) -> Optional[float]:
+    if p1 is None or p2 is None:
+        return None
+    return float(math.dist(p1, p2))
+
+
+def _mean_point(p1, p2) -> Optional[Tuple[float, float]]:
+    if p1 is None or p2 is None:
+        return None
+    return ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+
+
+def _load_uploaded_image(uploaded_file):
+    image = Image.open(uploaded_file).convert("RGB")
+    rgb = np.array(image)
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR) if cv2 is not None else None
+    return rgb, bgr
+
+
+def analyze_pain_area_image(uploaded_file, suspected_zone_label: str, side: str) -> Dict[str, Any]:
+    result = {
+        "usable": False,
+        "messages": [],
+        "annotated_image": None,
+        "pose_detected": False,
+        "visual_summary": [],
+    }
+
+    if uploaded_file is None:
+        result["messages"].append("No image uploaded.")
+        return result
+
+    if cv2 is None:
+        result["messages"].append("OpenCV is not installed.")
+        return result
+
+    pose_cls, drawing_utils, pose_connections, err = _get_pose_objects()
+    if err:
+        result["messages"].append(err)
+        return result
+
+    rgb, _ = _load_uploaded_image(uploaded_file)
+    if rgb is None:
+        result["messages"].append("Could not read the uploaded image.")
+        return result
+
+    h, w = rgb.shape[:2]
+    brightness = float(np.mean(cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)))
+    result["usable"] = True
+
+    if brightness < 45:
+        result["messages"].append("The image looks quite dark. A brighter photo would improve the review.")
+    elif brightness > 215:
+        result["messages"].append("The image is very bright/washed out. More balanced lighting would help.")
+
+    with pose_cls(
+        static_image_mode=True,
+        model_complexity=1,
+        enable_segmentation=False,
+        min_detection_confidence=0.5,
+    ) as pose:
+        pose_result = pose.process(rgb)
+
+    if not pose_result.pose_landmarks:
+        result["messages"].append(
+            "No full-body pose landmarks were detected. This can still be useful as a pain-area photo, but posture comparison is limited."
+        )
+        result["visual_summary"].append(
+            "Use a clearer photo with more of the body visible if you want posture or side-to-side review."
+        )
+        return result
+
+    result["pose_detected"] = True
+
+    landmarks = pose_result.pose_landmarks.landmark
+    ls = _safe_point(landmarks, LANDMARK_NAMES["left_shoulder"])
+    rs = _safe_point(landmarks, LANDMARK_NAMES["right_shoulder"])
+    lh = _safe_point(landmarks, LANDMARK_NAMES["left_hip"])
+    rh = _safe_point(landmarks, LANDMARK_NAMES["right_hip"])
+    lk = _safe_point(landmarks, LANDMARK_NAMES["left_knee"])
+    rk = _safe_point(landmarks, LANDMARK_NAMES["right_knee"])
+    la = _safe_point(landmarks, LANDMARK_NAMES["left_ankle"])
+    ra = _safe_point(landmarks, LANDMARK_NAMES["right_ankle"])
+    le = _safe_point(landmarks, LANDMARK_NAMES["left_elbow"])
+    re = _safe_point(landmarks, LANDMARK_NAMES["right_elbow"])
+    lw = _safe_point(landmarks, LANDMARK_NAMES["left_wrist"])
+    rw = _safe_point(landmarks, LANDMARK_NAMES["right_wrist"])
+
+    shoulder_tilt = _segment_angle_deg(ls, rs)
+    hip_tilt = _segment_angle_deg(lh, rh)
+
+    if shoulder_tilt is not None and abs(shoulder_tilt) > 10:
+        result["visual_summary"].append("Shoulder line looks a bit tilted in the image.")
+    else:
+        result["visual_summary"].append("Shoulder level looks relatively even in this image.")
+
+    if hip_tilt is not None and abs(hip_tilt) > 10:
+        result["visual_summary"].append("Pelvic/hip line looks a bit tilted in the image.")
+    elif hip_tilt is not None:
+        result["visual_summary"].append("Hip level looks relatively even in this image.")
+
+    if suspected_zone_label == "Knee / Patella / Tendon":
+        if lk is not None and rk is not None:
+            knee_y_diff = abs(lk[1] - rk[1])
+            if knee_y_diff > 0.05:
+                result["visual_summary"].append("The knees appear at slightly different heights, which may reflect stance, offloading, or camera angle.")
+            else:
+                result["visual_summary"].append("Knee height looks relatively similar side to side in this photo.")
+
+    if suspected_zone_label == "Shoulder / Clavicle / Scapula":
+        if ls is not None and rs is not None:
+            dist = _distance(ls, rs)
+            if dist is not None and dist < 0.08:
+                result["visual_summary"].append("Upper body looks turned or partially closed off in the image, so shoulder comparison may be limited.")
+            else:
+                result["visual_summary"].append("Shoulder region is visible enough for basic side-to-side visual screening.")
+
+    if suspected_zone_label == "Hip / Groin / Glute":
+        if lh is not None and rh is not None:
+            result["visual_summary"].append("Hip region is visible enough for rough posture comparison, but groin pain itself cannot be identified from a photo alone.")
+
+    if suspected_zone_label == "Lower Back / Lumbar / SI Joint":
+        result["visual_summary"].append("Low-back pain is usually more about symptoms, movement, and load history than what a static photo alone can show.")
+
+    if suspected_zone_label == "Ankle / Foot / Toes":
+        if la is not None and ra is not None:
+            ankle_y_diff = abs(la[1] - ra[1])
+            if ankle_y_diff > 0.05:
+                result["visual_summary"].append("Ankle or foot loading may be uneven in this image.")
+            else:
+                result["visual_summary"].append("Basic ankle/foot loading looks fairly even in this still image.")
+
+    if side in ["Left", "Right"]:
+        result["visual_summary"].append(
+            f"The written report says the painful side is the {side.lower()}. Compare that side with the other for swelling, bruising, guarding, or altered posture."
+        )
+
+    annotated = rgb.copy()
+    drawing_utils.draw_landmarks(annotated, pose_result.pose_landmarks, pose_connections)
+    result["annotated_image"] = annotated
+    result["messages"].append("Pose landmarks were detected from the uploaded image.")
+    return result
+
+
+def render_image_review_panel(uploaded_file, suspected_zone_label: str, side: str) -> Dict[str, Any]:
+    st.subheader("Visual pain-area review")
+
+    if uploaded_file is None:
+        st.caption(
+            "Optional: upload a clearer image of the painful area or a standing posture image. "
+            "This upgraded version can now do basic visual screening with OpenCV + MediaPipe."
+        )
+        return {"usable": False, "messages": [], "annotated_image": None, "pose_detected": False, "visual_summary": []}
+
+    st.image(uploaded_file, caption="Uploaded pain-area image", use_container_width=True)
+
+    analysis = analyze_pain_area_image(uploaded_file, suspected_zone_label, side)
+
+    for msg in analysis["messages"]:
+        if "not installed" in msg.lower() or "failed" in msg.lower():
+            st.warning(msg)
+        else:
+            st.info(msg)
+
+    if analysis["annotated_image"] is not None:
+        st.image(analysis["annotated_image"], caption="Pose / posture review", use_container_width=True)
+
+    if analysis["visual_summary"]:
+        st.write("**Visual screening notes from the image:**")
+        for item in analysis["visual_summary"]:
+            st.write(f"- {item}")
+
+    st.caption(
+        "This image review is for visual screening only. It cannot diagnose a tear, sprain, or tendon injury from a single photo."
+    )
+    return analysis
+
+
 def render_physio_section() -> None:
     st.header("Physio")
     st.write(
         "A more advanced sports triage and self-care support tool. It does not diagnose injuries and does not replace a doctor or physiotherapist. "
-        "It is built to be smarter, more sport-specific, and ready for future API upgrades."
+        "It is built to be smarter, more sport-specific, and now includes basic visual pain-area review."
     )
+
+    if cv2 is None:
+        st.warning("OpenCV is not installed. Add opencv-python-headless to your requirements.")
+    if mp is None:
+        st.warning("MediaPipe is not installed. Add mediapipe to your requirements.")
 
     st.subheader("Athlete profile")
     col1, col2 = st.columns(2)
@@ -636,6 +872,7 @@ def render_physio_section() -> None:
         [zone["label"] for zone in ANATOMY_ZONES.values()],
         index=7,
     )
+
     where_chat = st.text_area(
         "Write where it hurts in your own words",
         placeholder=(
@@ -645,6 +882,7 @@ def render_physio_section() -> None:
         ),
         height=120,
     )
+
     mechanism = st.text_area(
         "What happened?",
         placeholder="Example: landed awkwardly, after serves, after a match, after gym squats, after eggbeater, after sprinting...",
@@ -653,9 +891,9 @@ def render_physio_section() -> None:
 
     st.subheader("Upload visual pain-area reference")
     uploaded_file = st.file_uploader(
-        "Optional: upload an image of the painful area or where the athlete marked the pain",
+        "Optional: upload an image of the painful area or a posture image",
         type=["png", "jpg", "jpeg", "webp"],
-        help="This adds the dropbox/upload step you asked for. The current version previews the image now and is ready for future vision API analysis.",
+        help="This upgraded version can now do basic OpenCV + MediaPipe visual review.",
     )
 
     st.subheader("Red flags")
@@ -717,6 +955,8 @@ def render_physio_section() -> None:
             for item in burning_notes:
                 st.write(f"- {item}")
 
+        image_analysis = render_image_review_panel(uploaded_file, zone_label, side)
+
         st.write("**Training decision today:**")
         if decision_key == "continue":
             st.write("- You may do modified technical work, lighter volume, and controlled movement only if symptoms do not rise during the session.")
@@ -725,12 +965,21 @@ def render_physio_section() -> None:
         else:
             st.write("- Avoid normal full training today. Prioritize recovery and arrange in-person assessment.")
 
+        if image_analysis.get("pose_detected") and zone_label in [
+            "Knee / Patella / Tendon",
+            "Ankle / Foot / Toes",
+            "Shoulder / Clavicle / Scapula",
+            "Hip / Groin / Glute",
+        ]:
+            st.write("**How the photo changes the interpretation:**")
+            st.write("- The uploaded image adds some visual screening value for posture, side-to-side comparison, and obvious guarding.")
+            st.write("- Use the photo findings together with symptoms and not as proof of a specific injury.")
+
         if where_chat.strip():
             st.info(f"Your pain description: {where_chat.strip()}")
         if mechanism.strip():
             st.info(f"Mechanism noted: {mechanism.strip()}")
 
-        render_uploaded_image_panel(uploaded_file)
         render_professional_escalation(onset, pain, selected_red_flags, pain_type)
 
         st.write("**Urgent clues specific to this area:**")
@@ -738,6 +987,5 @@ def render_physio_section() -> None:
             st.write(f"- {item}")
 
         st.caption(
-            "Educational support only, not a diagnosis. This version already includes the image-upload dropbox and the large anatomical catalog, "
-            "and it is structured so you can later connect AI/API image review without rebuilding the section."
+            "Educational support only, not a diagnosis. This version now includes image-based visual screening with OpenCV + MediaPipe on top of the anatomy catalog and sport logic."
         )
