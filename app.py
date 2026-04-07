@@ -31,11 +31,11 @@ SECTION_DESCRIPTIONS = {
 
 
 SECTION_ICONS = {
-    "Home": "🏠",
-    "Training Generator": "🏋️",
-    "Video Review": "🎥",
-    "Counseling": "🧠",
-    "Physio": "🩺",
+    "Home",
+    "Training Generator",
+    "Video Review",
+    "Counseling",
+    "Physio" ,
 }
 
 
@@ -158,26 +158,26 @@ def render_section_cards() -> None:
 
     with c1:
         with st.container():
-            st.markdown("#### 🏋️ Training Generator")
+            st.markdown("#### Training Generator")
             st.write("Generate pro-level sessions with better structure, progression logic, and more measurable prescriptions.")
             if st.button("Open Training Generator", use_container_width=True, key="open_training_home"):
                 st.session_state.active_section = "Training Generator"
 
         with st.container():
-            st.markdown("#### 🧠 Counseling")
+            st.markdown("#### Counseling")
             st.write("Guide athlete decisions, pathway planning, tournament thinking, and strategic development choices.")
             if st.button("Open Counseling", use_container_width=True, key="open_counseling_home"):
                 st.session_state.active_section = "Counseling"
 
     with c2:
         with st.container():
-            st.markdown("#### 🎥 Video Review")
+            st.markdown("#### Video Review")
             st.write("Review movement and technique with a more performance-oriented workflow.")
             if st.button("Open Video Review", use_container_width=True, key="open_video_home"):
                 st.session_state.active_section = "Video Review"
 
         with st.container():
-            st.markdown("#### 🩺 Physio")
+            st.markdown("#### Physio")
             st.write("Handle pain-related guidance, risk awareness, and support before problems get worse.")
             if st.button("Open Physio", use_container_width=True, key="open_physio_home"):
                 st.session_state.active_section = "Physio"
