@@ -241,17 +241,7 @@ def render_home() -> None:
     else:
         st.session_state.is_professional = "No"
 
-    st.session_state.profile_email = st.text_input(
-        "Email for future saved profile",
-        value=st.session_state.profile_email,
-        placeholder="Enter your email if you want this profile linked to login later",
-    )
-
-    if st.session_state.profile_email.strip():
-        st.success("Profile persistence is prepared for email-based login. Permanent saving needs authentication/database enabled.")
-    else:
-        st.info("Without email-based login enabled, this profile works for the current session only.")
-
+   
     st.session_state.home_notes = st.text_area(
         "Planning notes",
         value=st.session_state.home_notes,
