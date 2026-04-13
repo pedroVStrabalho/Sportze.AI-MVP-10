@@ -1,4 +1,3 @@
-
 import streamlit as st
 
 from training_generator_section import render_training_generator_section
@@ -105,7 +104,8 @@ def detect_sport_type(sport_text: str) -> str:
 
 def section_button(label: str, current: str) -> None:
     button_type = "primary" if current == label else "secondary"
-    if st.button(label, use_container_width=True, type=button_type):
+    button_key = f"topnav_{label.lower().replace(' ', '_')}"
+    if st.button(label, use_container_width=True, type=button_type, key=button_key):
         st.session_state.active_section = label
 
 
@@ -121,7 +121,7 @@ def render_sidebar() -> None:
 
         plans = ["Free", "Plus", "Pro"]
         current_plan = st.session_state.selected_plan if st.session_state.selected_plan in plans else "Pro"
-        st.session_state.selected_plan = st.selectbox("Plan view", plans, index=plans.index(current_plan))
+        st.session_state.selected_plan = st.selectbox("Plan view", plans, index=plans.index(current_plan), key="sidebar_plan_view")
 
         st.markdown("### Active section")
         st.write(f"**{st.session_state.active_section}**")
@@ -131,7 +131,7 @@ def render_sidebar() -> None:
 
         st.markdown("### Navigation")
         for section in SECTIONS:
-            if st.button(section, use_container_width=True, key=f"sidebar_{section}"):
+            if st.button(section, use_container_width=True, key=f"sidebar_{section.lower().replace(' ', '_')}"):
                 st.session_state.active_section = section
 
         st.divider()
@@ -175,6 +175,7 @@ def render_home() -> None:
         "What sport do you play?",
         value=st.session_state.sport,
         placeholder="Type any sport in the world",
+        key="home_sport_input",
     )
 
     detected_type = detect_sport_type(st.session_state.sport)
@@ -187,6 +188,7 @@ def render_home() -> None:
             ["Individual Sport", "Team Sport"],
             horizontal=True,
             index=0 if st.session_state.sport_type != "Team Sport" else 1,
+            key="home_sport_type_radio",
         )
     else:
         st.session_state.sport_type = ""
@@ -196,11 +198,13 @@ def render_home() -> None:
             "What team do you play for?",
             value=st.session_state.team_name,
             placeholder="Type your club, school, academy, or team name",
+            key="home_team_name_input",
         )
         st.session_state.athlete_name = st.text_input(
             "Athlete name",
             value=st.session_state.athlete_name,
             placeholder="Type the athlete name",
+            key="home_athlete_name_team_input",
         )
     elif st.session_state.sport_type == "Individual Sport":
         st.session_state.team_name = ""
@@ -208,6 +212,7 @@ def render_home() -> None:
             "Your name",
             value=st.session_state.athlete_name,
             placeholder="Type your name",
+            key="home_athlete_name_individual_input",
         )
 
     c1, c2, c3 = st.columns(3)
@@ -216,12 +221,14 @@ def render_home() -> None:
             "Main goal",
             goals,
             index=goals.index(st.session_state.goal) if st.session_state.goal in goals else 0,
+            key="home_goal_select",
         )
     with c2:
         st.session_state.level = st.selectbox(
             "Current level",
             levels,
             index=levels.index(st.session_state.level) if st.session_state.level in levels else 2,
+            key="home_level_select",
         )
     with c3:
         st.session_state.weekly_target = st.slider(
@@ -229,6 +236,7 @@ def render_home() -> None:
             1,
             7,
             st.session_state.weekly_target,
+            key="home_weekly_target_slider",
         )
 
     if st.session_state.level in ["Advanced", "Elite"]:
@@ -237,16 +245,17 @@ def render_home() -> None:
             ["No", "Yes"],
             horizontal=True,
             index=1 if st.session_state.is_professional == "Yes" else 0,
+            key="home_professional_radio",
         )
     else:
         st.session_state.is_professional = "No"
 
-   
     st.session_state.home_notes = st.text_area(
         "Planning notes",
         value=st.session_state.home_notes,
         placeholder="Examples: tournament next week, shoulder discomfort, wants speed emphasis, building a more elite routine...",
         height=90,
+        key="home_notes_textarea",
     )
 
     st.divider()
@@ -254,14 +263,14 @@ def render_home() -> None:
     st.markdown("### Modules")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Training Generator", use_container_width=True):
+        if st.button("Training Generator", use_container_width=True, key="home_training_generator_button"):
             st.session_state.active_section = "Training Generator"
-        if st.button("Counseling", use_container_width=True):
+        if st.button("Counseling", use_container_width=True, key="home_counseling_button"):
             st.session_state.active_section = "Counseling"
     with c2:
-        if st.button("Video Review", use_container_width=True):
+        if st.button("Video Review", use_container_width=True, key="home_video_review_button"):
             st.session_state.active_section = "Video Review"
-        if st.button("Physio", use_container_width=True):
+        if st.button("Physio", use_container_width=True, key="home_physio_button"):
             st.session_state.active_section = "Physio"
 
     st.divider()
