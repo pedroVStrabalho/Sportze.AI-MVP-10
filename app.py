@@ -159,6 +159,24 @@ def render_sidebar() -> None:
 
 def render_home() -> None:
     st.markdown("## Home")
+
+    st.markdown("### Modules")
+    st.write("Choose a module first for quick access, or fill in the athlete profile below so the Training Generator can reuse your answers automatically.")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Training Generator", use_container_width=True, key="home_training_generator_button"):
+            st.session_state.active_section = "Training Generator"
+        if st.button("Counseling", use_container_width=True, key="home_counseling_button"):
+            st.session_state.active_section = "Counseling"
+    with c2:
+        if st.button("Video Review", use_container_width=True, key="home_video_review_button"):
+            st.session_state.active_section = "Video Review"
+        if st.button("Physio", use_container_width=True, key="home_physio_button"):
+            st.session_state.active_section = "Physio"
+
+    st.divider()
+
     st.markdown("### Athlete Profile")
 
     goals = [
@@ -231,8 +249,13 @@ def render_home() -> None:
             key="home_level_select",
         )
     with c3:
+        frequency_label = (
+            "How many times do you play sports per week?"
+            if st.session_state.goal == "Learn how to play" or st.session_state.level == "Beginner"
+            else "How many times do you train this sport per week?"
+        )
         st.session_state.weekly_target = st.slider(
-            "How many times do you train this sport per week?",
+            frequency_label,
             1,
             7,
             st.session_state.weekly_target,
@@ -260,25 +283,11 @@ def render_home() -> None:
 
     st.divider()
 
-    st.markdown("### Modules")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("Training Generator", use_container_width=True, key="home_training_generator_button"):
-            st.session_state.active_section = "Training Generator"
-        if st.button("Counseling", use_container_width=True, key="home_counseling_button"):
-            st.session_state.active_section = "Counseling"
-    with c2:
-        if st.button("Video Review", use_container_width=True, key="home_video_review_button"):
-            st.session_state.active_section = "Video Review"
-        if st.button("Physio", use_container_width=True, key="home_physio_button"):
-            st.session_state.active_section = "Physio"
-
-    st.divider()
-
     st.markdown("### System Overview")
     st.write("This platform is designed to connect training, analysis, planning, and physical support in one system.")
     st.write("The athlete profile starts from the sport first, then adapts the next questions depending on whether the sport is individual or team-based.")
-    st.write("The weekly training frequency is defined here on the home page so it does not need to be repeated inside the training generator.")
+    st.write("If the athlete profile is filled in here, the Training Generator reuses those answers and does not repeat the same questions.")
+    st.write("If the home profile is not filled in, the Training Generator will ask those questions normally.")
 
 
 def render_training_page() -> None:
