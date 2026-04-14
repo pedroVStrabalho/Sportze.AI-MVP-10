@@ -75,10 +75,10 @@ def init_state() -> None:
         "sport_type": "",
         "team_name": "",
         "athlete_name": "",
-        "goal": "Improve performance",
-        "level": "Advanced",
+        "goal": "None",
+        "level": "None",
         "is_professional": "No",
-        "weekly_target": 4,
+        "weekly_target": "None",
         "home_notes": "",
         "profile_email": "",
     }
@@ -107,6 +107,7 @@ def section_button(label: str, current: str) -> None:
     button_key = f"topnav_{label.lower().replace(' ', '_')}"
     if st.button(label, use_container_width=True, type=button_type, key=button_key):
         st.session_state.active_section = label
+        st.rerun()
 
 
 def render_top_banner() -> None:
@@ -133,6 +134,7 @@ def render_sidebar() -> None:
         for section in SECTIONS:
             if st.button(section, use_container_width=True, key=f"sidebar_{section.lower().replace(' ', '_')}"):
                 st.session_state.active_section = section
+                st.rerun()
 
         st.divider()
 
@@ -142,9 +144,9 @@ def render_sidebar() -> None:
         if st.session_state.team_name:
             st.write(f"Team: {st.session_state.team_name}")
         st.write(f"Athlete: {st.session_state.athlete_name or 'Not entered'}")
-        st.write(f"Goal: {st.session_state.goal}")
-        st.write(f"Level: {st.session_state.level}")
-        st.write(f"Weekly frequency: {st.session_state.weekly_target}")
+        st.write(f"Goal: {st.session_state.goal if st.session_state.goal != 'None' else 'Not entered'}")
+        st.write(f"Level: {st.session_state.level if st.session_state.level != 'None' else 'Not entered'}")
+        st.write(f"Weekly frequency: {st.session_state.weekly_target if st.session_state.weekly_target != 'None' else 'Not entered'}")
         if st.session_state.level in ["Advanced", "Elite"]:
             st.write(f"Professional: {st.session_state.is_professional}")
 
@@ -167,19 +169,24 @@ def render_home() -> None:
     with c1:
         if st.button("Training Generator", use_container_width=True, key="home_training_generator_button"):
             st.session_state.active_section = "Training Generator"
+            st.rerun()
         if st.button("Counseling", use_container_width=True, key="home_counseling_button"):
             st.session_state.active_section = "Counseling"
+            st.rerun()
     with c2:
         if st.button("Video Review", use_container_width=True, key="home_video_review_button"):
             st.session_state.active_section = "Video Review"
+            st.rerun()
         if st.button("Physio", use_container_width=True, key="home_physio_button"):
             st.session_state.active_section = "Physio"
+            st.rerun()
 
     st.divider()
 
     st.markdown("### Athlete Profile")
 
     goals = [
+        "None",
         "Improve performance",
         "Build fitness",
         "Return after a break",
@@ -187,7 +194,7 @@ def render_home() -> None:
         "Injury prevention",
         "Competition preparation",
     ]
-    levels = ["Beginner", "Intermediate", "Advanced", "Elite"]
+    levels = ["None", "Beginner", "Intermediate", "Advanced", "Elite"]
 
     st.session_state.sport = st.text_input(
         "What sport do you play?",
@@ -254,12 +261,13 @@ def render_home() -> None:
             if st.session_state.goal == "Learn how to play" or st.session_state.level == "Beginner"
             else "How many times do you train this sport per week?"
         )
-        st.session_state.weekly_target = st.slider(
+        frequency_options = ["None", 1, 2, 3, 4, 5, 6, 7]
+        current_frequency = st.session_state.weekly_target if st.session_state.weekly_target in frequency_options else "None"
+        st.session_state.weekly_target = st.selectbox(
             frequency_label,
-            1,
-            7,
-            st.session_state.weekly_target,
-            key="home_weekly_target_slider",
+            frequency_options,
+            index=frequency_options.index(current_frequency),
+            key="home_weekly_target_select",
         )
 
     if st.session_state.level in ["Advanced", "Elite"]:
@@ -311,21 +319,22 @@ def main() -> None:
     render_sidebar()
     render_top_banner()
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        section_button("Home", st.session_state.active_section)
-    with c2:
-        section_button("Training Generator", st.session_state.active_section)
-    with c3:
-        section_button("Video Review", st.session_state.active_section)
-    with c4:
-        section_button("Counseling", st.session_state.active_section)
-    with c5:
-        section_button("Physio", st.session_state.active_section)
-
-    st.divider()
-
     section = st.session_state.active_section
+
+    if section != "Home":
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            section_button("Home", st.session_state.active_section)
+        with c2:
+            section_button("Training Generator", st.session_state.active_section)
+        with c3:
+            section_button("Video Review", st.session_state.active_section)
+        with c4:
+            section_button("Counseling", st.session_state.active_section)
+        with c5:
+            section_button("Physio", st.session_state.active_section)
+
+        st.divider()
 
     if section == "Home":
         render_home()
