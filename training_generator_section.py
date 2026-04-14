@@ -573,6 +573,38 @@ GOAL_PRIORITIES = {
 # -----------------------------------------------------------------------------
 # GENERATOR HELPERS
 # -----------------------------------------------------------------------------
+
+
+def normalize_profile_sport_name(text: str) -> str:
+    return " ".join(str(text).strip().lower().split())
+
+
+def get_home_profile_defaults() -> Dict[str, object]:
+    return {
+        "sport": st.session_state.get("sport", ""),
+        "goal": st.session_state.get("goal", ""),
+        "level": st.session_state.get("level", ""),
+        "weekly_target": st.session_state.get("weekly_target", None),
+        "home_notes": st.session_state.get("home_notes", ""),
+    }
+
+
+def match_supported_sport(home_sport: str) -> Optional[str]:
+    normalized = normalize_profile_sport_name(home_sport)
+    if not normalized:
+        return None
+    for sport_name in SPORT_POSITIONS.keys():
+        if normalize_profile_sport_name(sport_name) == normalized:
+            return sport_name
+    aliases = {
+        "football": "Soccer",
+        "soccer": "Soccer",
+        "waterpolo": "Water Polo",
+        "water polo": "Water Polo",
+        "gym": "Gym",
+    }
+    return aliases.get(normalized)
+
 def get_frequency_prompt(goal: str, level: str) -> str:
     if goal == "Learn how to play" or level == "Beginner":
         return "How many times do you play sports per week?"
@@ -1103,6 +1135,7 @@ def render_metric_cards(adjusted_duration: int, estimated_load: str, intensity_m
 # -----------------------------------------------------------------------------
 # STREAMLIT SECTION
 # -----------------------------------------------------------------------------
+
 def render_training_generator_section() -> None:
     st.header("Training Generator Pro")
     st.write(
@@ -1110,17 +1143,66 @@ def render_training_generator_section() -> None:
         "season context, position-specific emphasis, coaching points, progressions, and a more professional planning layer."
     )
 
+    home_profile = get_home_profile_defaults()
+    saved_sport = match_supported_sport(str(home_profile.get("sport", "")))
+    saved_goal = home_profile.get("goal") if home_profile.get("goal") in GOALS else None
+    saved_level = home_profile.get("level") if home_profile.get("level") in LEVELS else None
+    saved_frequency = home_profile.get("weekly_target") if isinstance(home_profile.get("weekly_target"), int) else None
+    saved_home_notes = str(home_profile.get("home_notes", "")).strip()
+
+    using_saved_fields = []
+    if saved_sport:
+        using_saved_fields.append(f"Sport: {saved_sport}")
+    if saved_goal:
+        using_saved_fields.append(f"Goal: {saved_goal}")
+    if saved_level:
+        using_saved_fields.append(f"Level: {saved_level}")
+    if saved_frequency:
+        using_saved_fields.append(f"Weekly frequency: {saved_frequency}")
+
+    if using_saved_fields:
+        st.info("Using saved Home profile answers for: " + " | ".join(using_saved_fields))
+
     role = st.radio("Are you a player or coach?", ["Player", "Coach"], horizontal=True)
 
     c1, c2 = st.columns(2)
     with c1:
-        sport = st.selectbox("Choose the sport", list(SPORT_POSITIONS.keys()))
+        if saved_sport:
+            sport = saved_sport
+            st.text_input("Choose the sport", value=sport, disabled=True, key="training_saved_sport_display")
+        else:
+            sport = st.selectbox("Choose the sport", list(SPORT_POSITIONS.keys()))
+
         position = st.selectbox("Choose the position / profile", SPORT_POSITIONS[sport])
-        goal = st.selectbox("Main goal", GOALS)
-        level = st.selectbox("Current level", LEVELS)
+
+        if saved_goal:
+            goal = saved_goal
+            st.text_input("Main goal", value=goal, disabled=True, key="training_saved_goal_display")
+        else:
+            goal = st.selectbox("Main goal", GOALS)
+
+        if saved_level:
+            level = saved_level
+            st.text_input("Current level", value=level, disabled=True, key="training_saved_level_display")
+        else:
+            level = st.selectbox("Current level", LEVELS)
+
         primary_focus = st.selectbox("Primary focus today", PRIMARY_FOCUS_OPTIONS)
+
     with c2:
-        weekly_frequency = st.slider(get_frequency_prompt(goal, level), 1, 7, 4)
+        if saved_frequency:
+            weekly_frequency = saved_frequency
+            st.number_input(
+                get_frequency_prompt(goal, level),
+                min_value=1,
+                max_value=7,
+                value=int(weekly_frequency),
+                disabled=True,
+                key="training_saved_weekly_frequency_display",
+            )
+        else:
+            weekly_frequency = st.slider(get_frequency_prompt(goal, level), 1, 7, 4)
+
         session_type = st.selectbox("Session type", SESSION_TYPES)
         duration = st.slider("Requested session duration (minutes)", 30, 180, 75, step=5)
         equipment_level = st.selectbox(
@@ -1142,8 +1224,10 @@ def render_training_generator_section() -> None:
 
     render_equipment_level_box(equipment_level)
 
+    default_notes = saved_home_notes if saved_home_notes else ""
     notes = st.text_area(
         "Extra notes",
+        value=default_notes,
         placeholder="Examples: match in 3 days, shoulder fatigue, focus on speed, beginner team, small training space, heavy legs, needs serve emphasis...",
         height=110,
     )
