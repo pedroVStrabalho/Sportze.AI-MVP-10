@@ -631,18 +631,30 @@ def _get_pose_objects():
         return None, None, None, "MediaPipe is not installed in this environment."
 
     try:
-        pose_cls = mp.solutions.pose.Pose
-        drawing_utils = mp.solutions.drawing_utils
-        pose_connections = mp.solutions.pose.POSE_CONNECTIONS
-        return pose_cls, drawing_utils, pose_connections, None
+        pose_module = getattr(getattr(mp, "solutions", None), "pose", None)
+        drawing_utils = getattr(getattr(mp, "solutions", None), "drawing_utils", None)
+        pose_cls = getattr(pose_module, "Pose", None)
+        pose_connections = getattr(pose_module, "POSE_CONNECTIONS", None)
+
+        if pose_cls is not None and drawing_utils is not None and pose_connections is not None:
+            return pose_cls, drawing_utils, pose_connections, None
     except Exception:
-        try:
-            from mediapipe.python.solutions.pose import Pose as PoseAlt
-            from mediapipe.python.solutions import drawing_utils as drawing_utils_alt
-            from mediapipe.python.solutions.pose import POSE_CONNECTIONS as pose_connections_alt
-            return PoseAlt, drawing_utils_alt, pose_connections_alt, None
-        except Exception as exc:
-            return None, None, None, f"MediaPipe import failed: {exc}"
+        pass
+
+    try:
+        from mediapipe.tasks.python.vision.pose_landmarker import PoseLandmarker  # type: ignore
+        return None, None, None, (
+            "MediaPipe was found, but this environment appears to have the Tasks-only package layout. "
+            "This Physio photo review expects the classic `mediapipe.solutions.pose` package. "
+            "Install a standard MediaPipe build that includes `solutions.pose`."
+        )
+    except Exception:
+        pass
+
+    return None, None, None, (
+        "MediaPipe is installed, but `mediapipe.solutions.pose` is not available in this environment. "
+        "Reinstall MediaPipe with a standard build and restart the app."
+    )
 
 
 def _safe_point(landmarks, idx: int, visibility_threshold: float = 0.5) -> Optional[Tuple[float, float]]:
@@ -864,7 +876,6 @@ def render_physio_section() -> None:
         swelling = st.radio("Is there swelling?", ["No", "A little", "A lot"], horizontal=True)
         can_train = st.radio("Can you still train normally right now?", ["Yes", "A little", "No"], horizontal=True)
         after_impact = st.radio("Did it start after a collision, fall, twist, or bad landing?", ["No", "Yes"], horizontal=True)
-        side = st.selectbox("Which side?", ["Not sure / central", "Left", "Right", "Both"])
 
     st.subheader("Where does it hurt?")
     manual_area = st.selectbox(
@@ -882,6 +893,8 @@ def render_physio_section() -> None:
         ),
         height=120,
     )
+
+    side = st.selectbox("Which side does it hurt?", ["Not sure / central", "Left", "Right", "Both"])
 
     mechanism = st.text_area(
         "What happened?",
