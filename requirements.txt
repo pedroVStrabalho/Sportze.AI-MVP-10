@@ -3,6 +3,6 @@ numpy==1.26.4
 Pillow==10.4.0
 opencv-python-headless==4.11.0.86
 mediapipe==0.10.14
-protobuf<4
+protobuf>=4.25.3,<5
 imageio==2.37.0
 imageio-ffmpeg==0.6.0
