@@ -868,20 +868,20 @@ def render_special_inputs_if_needed(key: str) -> bool:
     return False
 
 
-def collect_counseling_answers() -> Tuple[Optional[str], str, Dict[str, object]]:
+def collect_counseling_answers() -> Tuple[Optional[str], str, Dict[str, object], bool]:
     ensure_counseling_state()
 
     render_chat_history()
 
     sport = sport_selector_value()
     if not sport:
-        return None, "unknown", {}
+        return None, "unknown", {}, False
 
     sport_type = detect_sport_type(sport)
 
     prof = professional_status_value()
     if not prof:
-        return sport, sport_type, {}
+        return sport, sport_type, {}, False
 
     required = build_required_flow(sport, sport_type)
     collected: Dict[str, object] = {"sport": sport, "sport_type": sport_type, "professional_status": prof}
@@ -893,16 +893,16 @@ def collect_counseling_answers() -> Tuple[Optional[str], str, Dict[str, object]]
         if render_special_inputs_if_needed(key):
             value = get_saved_or_profile_value(key, *profile_keys)
             if value in [None, "", [], {}]:
-                return sport, sport_type, collected
+                return sport, sport_type, collected, False
             collected[key] = value
             continue
 
         answer = ask_chat_question(question, key, profile_keys)
         if answer is None:
-            return sport, sport_type, collected
+            return sport, sport_type, collected, False
         collected[key] = answer
 
-    return sport, sport_type, collected
+    return sport, sport_type, collected, True
 
 
 # -----------------------------------------------------------------------------
@@ -1160,13 +1160,13 @@ def render_counseling_section() -> None:
             reset_counseling_flow()
             st.rerun()
 
-    sport, sport_type, collected = collect_counseling_answers()
+    sport, sport_type, collected, is_complete = collect_counseling_answers()
     if not sport:
         return
 
-    st.divider()
-    st.markdown("### Current counseling profile")
-    st.json(collected)
+    if not is_complete:
+        st.info("Answer the remaining questions above. The full counseling result will only appear after the whole intake is finished.")
+        return
 
     if sport.strip().lower() == "tennis":
         render_tennis_counseling_from_flow(collected)
