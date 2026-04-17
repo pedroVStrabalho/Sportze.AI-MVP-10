@@ -64,7 +64,7 @@ OFFICIAL_TENNIS_SOURCES = {
 
 SPORT_CLASSIFICATION = {
     "Soccer": "team",
-    "Football": "team",
+    "American Football": "team",
     "Futsal": "team",
     "Basketball": "team",
     "Volleyball": "team",
