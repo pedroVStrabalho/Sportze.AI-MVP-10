@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urljoin
 
 import streamlit as st
 
@@ -47,21 +48,88 @@ DEFAULT_HEADERS = {
 
 OFFICIAL_TENNIS_SOURCES = {
     "ATP Tour": {
-        "calendar_pdf": "https://www.atptour.com/-/media/files/calendar-pdfs/{year}/{year}-atp-tour-calendar-december-{prev_year}.pdf",
-        "news_page": "https://www.atptour.com/en/news/what-is-the-{year}-atp-tour-calendar",
-        "tournaments": "https://www.atptour.com/en/tournaments",
         "calendar_page": "https://www.atptour.com/en/tournaments",
+        "calendar_pdf_guess": "https://www.atptour.com/-/media/files/calendar-pdfs/{year}/{year}-{next_short}-calendar.pdf",
+        "fallback_pdf": "https://www.atptour.com/-/media/files/calendar-pdfs/{year}/{year}-atp-tour-calendar-december-{prev_year}.pdf",
     },
     "ATP Challenger": {
-        "calendar_html": "https://www.atptour.com/en/atp-challenger-tour/calendar",
+        "calendar_page": "https://www.atptour.com/en/atp-challenger-tour/calendar",
         "calendar_alt": "https://www.atptour.com/en/challenger-tour/calendar",
-        "calendar_pdf": "https://www.atptour.com/-/media/files/calendar-pdfs/{year}/{year}-27-atp-challenger-calendar-as-of-11-february-{year}.pdf",
+        "fallback_pdf": "https://www.atptour.com/-/media/files/calendar-pdfs/{year}/{year}-27-atp-challenger-calendar-as-of-11-february-{year}.pdf",
     },
     "ITF": {
-        "calendar_html": "https://www.itftennis.com/en/tournament-calendar/mens-world-tennis-tour-calendar/",
-        "tour_home": "https://www.itftennis.com/en/itf-tours/mens-world-tennis-tour/",
+        "calendar_page": "https://www.itftennis.com/en/tournament-calendar/mens-world-tennis-tour-calendar/",
     },
 }
+
+SPORT_CLASSIFICATION = {
+    "Soccer": "team",
+    "Football": "team",
+    "Futsal": "team",
+    "Basketball": "team",
+    "Volleyball": "team",
+    "Water Polo": "team",
+    "Handball": "team",
+    "Rugby": "team",
+    "Hockey": "team",
+    "Baseball": "team",
+    "Softball": "team",
+    "Cricket": "team",
+    "Tennis": "individual",
+    "Padel": "individual",
+    "Beach Tennis": "individual",
+    "Table Tennis": "individual",
+    "Badminton": "individual",
+    "Squash": "individual",
+    "Golf": "individual",
+    "Athletics": "individual",
+    "Swimming": "individual",
+    "Triathlon": "individual",
+    "Boxing": "individual",
+    "Judo": "individual",
+    "Wrestling": "individual",
+    "Gymnastics": "individual",
+    "Cycling": "individual",
+    "Surf": "individual",
+}
+
+DEFAULT_SPORT_OPTIONS = list(SPORT_CLASSIFICATION.keys()) + ["Other"]
+
+TEAM_COUNTRY_HINTS = {
+    "Brazil": "South America",
+    "Argentina": "South America",
+    "Portugal": "Europe",
+    "Spain": "Europe",
+    "England": "Europe",
+    "Italy": "Europe",
+    "Germany": "Europe",
+    "France": "Europe",
+    "United States": "North America",
+}
+
+TEAM_DESTINATION_OPTIONS = [
+    "Brazil",
+    "Portugal",
+    "Spain",
+    "England",
+    "Italy",
+    "Germany",
+    "France",
+    "United States",
+    "Japan",
+    "Saudi Arabia",
+    "Qatar",
+    "Other",
+]
+
+INDIVIDUAL_GOALS = [
+    "Get match wins",
+    "Build ranking",
+    "Try a bigger event",
+    "Come back with confidence",
+    "Prepare for next tournament",
+    "Other",
+]
 
 TENNIS_SURFACE_PROFILE: Dict[str, List[str]] = {
     "Clay": [
@@ -81,67 +149,6 @@ TENNIS_SURFACE_PROFILE: Dict[str, List[str]] = {
     ],
 }
 
-SOCCER_CONTINENTS = {
-    "Europe": ["England", "Spain", "Portugal", "Italy", "Germany", "France", "Netherlands", "Belgium", "Scotland", "Ireland"],
-    "South America": ["Brazil", "Argentina", "Uruguay", "Chile", "Colombia", "Peru", "Paraguay"],
-    "North America": ["United States", "Mexico", "Canada"],
-    "Asia": ["Japan", "South Korea", "Saudi Arabia", "UAE", "Qatar"],
-}
-
-SOCCER_DIVISION_GUIDE = {
-    "Brazil": [
-        "Academy / U15-U17",
-        "Academy / U20",
-        "State league / amateur",
-        "Semi-pro",
-        "Serie D / equivalent",
-        "Serie C / equivalent",
-        "Serie B / equivalent",
-        "Serie A / top-flight equivalent",
-    ],
-    "England": [
-        "Academy / U18",
-        "Academy / U21",
-        "Non-League",
-        "League Two equivalent",
-        "League One equivalent",
-        "Championship equivalent",
-        "Premier League equivalent",
-    ],
-    "Portugal": [
-        "Academy / U17",
-        "Academy / U19",
-        "Campeonato de Portugal / amateur bridge",
-        "Liga 3 equivalent",
-        "Liga Portugal 2 equivalent",
-        "Liga Portugal equivalent",
-    ],
-    "Spain": [
-        "Academy / Juvenil",
-        "Reserve / B team level",
-        "Tercera / amateur bridge",
-        "Segunda Federación equivalent",
-        "Primera Federación equivalent",
-        "LaLiga Hypermotion equivalent",
-        "LaLiga equivalent",
-    ],
-    "Default": [
-        "Academy",
-        "Amateur",
-        "Semi-pro",
-        "Lower professional",
-        "Second division equivalent",
-        "Top-flight equivalent",
-    ],
-}
-
-AGE_DEVELOPMENT_NOTES = {
-    "under_15": "Development, coaching quality, and patience matter much more than exposure hype.",
-    "15_to_17": "This is a formation stage, so pathway logic and game minutes beat prestige-only moves.",
-    "18_to_21": "This is a sensitive bridge stage where first-team minutes and contract clarity matter a lot.",
-    "22_plus": "Role fit, stability, and level progression matter more than vague promises.",
-}
-
 BUDGET_TO_DISTANCE = {
     "Low": "Prefer same country or short regional travel when possible.",
     "Medium": "Regional travel is realistic; one stronger option can be worth it if acceptance odds are still sensible.",
@@ -151,8 +158,10 @@ BUDGET_TO_DISTANCE = {
 OBJECTIVE_GUIDANCE = {
     "Get match wins": "Prioritize acceptance probability, manageable draw strength, and surface comfort.",
     "Try a bigger event": "Allow one ambitious option, but keep one safer backup where direct acceptance or qualifying is realistic.",
-    "Build points safely": "Favor events with a logical entry level, reduced travel stress, and a better chance to collect rounds.",
+    "Build ranking": "Favor events with logical entry level, reduced travel stress, and a better chance to collect rounds.",
     "Come back with confidence": "Avoid chaotic long travel weeks and choose conditions that help rhythm and execution.",
+    "Prepare for next tournament": "Choose a week that fits the next event rather than the most famous event.",
+    "Other": "Use the written goal to guide the recommendation.",
 }
 
 
@@ -183,13 +192,13 @@ def build_future_api_payload(module_name: str, profile: Dict[str, object], conte
         "module": module_name,
         "profile": profile,
         "context": context,
-        "generator_version": "counseling_v3_api_ready",
+        "generator_version": "counseling_v4_multi_sport_api_ready",
         "requested_output": {
             "format": "structured_counseling_recommendation",
             "needs_reasoning": True,
             "needs_live_sports_research": True,
             "needs_professional_tone": True,
-            "needs_named_event_output": True,
+            "needs_named_event_output_when_possible": True,
         },
         "api_status": "not_connected_yet",
     }
@@ -234,7 +243,9 @@ def format_date_range(start: Optional[date], end: Optional[date]) -> str:
 
 
 def parse_date_flex(raw: str) -> Optional[date]:
-    raw = raw.strip()
+    raw = (raw or "").strip()
+    if not raw:
+        return None
     patterns = [
         "%Y-%m-%d",
         "%d %b %Y",
@@ -349,13 +360,16 @@ def score_tournament(
         if "ATP Tour" in tournament.source or "ATP 250" in tournament.category or "Challenger 125" in tournament.category:
             score += 10
             reasons.append("This option supports an ambition-oriented week.")
-    elif objective == "Build points safely":
+    elif objective == "Build ranking":
         if "ITF" in tournament.source or "Challenger 50" in tournament.category or "Challenger 75" in tournament.category:
             score += 10
             reasons.append("This type of event can be more logical for controlled point building.")
     elif objective == "Come back with confidence":
         score += 5
         reasons.append("For a confidence week, controlled conditions matter more than maximum tournament prestige.")
+    elif objective == "Prepare for next tournament":
+        score += 5
+        reasons.append("Preparation weeks should serve the next event, not just the biggest name on the calendar.")
 
     if tournament.country and location.strip():
         location_l = location.lower()
@@ -386,8 +400,60 @@ def score_tournament(
     return score, reasons
 
 
+def get_profile_source() -> Dict[str, object]:
+    """
+    Reads profile-like answers saved elsewhere in the app.
+    This is intentionally broad so it can work with current or future homepage keys.
+    """
+    candidates = [
+        "athlete_profile",
+        "profile",
+        "homepage_profile",
+        "home_profile",
+        "user_profile",
+        "sportze_profile",
+    ]
+    for key in candidates:
+        value = st.session_state.get(key)
+        if isinstance(value, dict):
+            return value
+    return {}
+
+
+def get_profile_value(*keys: str) -> Optional[object]:
+    profile = get_profile_source()
+    for key in keys:
+        if key in profile and profile.get(key) not in [None, "", [], {}]:
+            return profile.get(key)
+        if key in st.session_state and st.session_state.get(key) not in [None, "", [], {}]:
+            return st.session_state.get(key)
+    return None
+
+
+def detect_sport_type(sport_name: str) -> str:
+    if not sport_name:
+        return "unknown"
+    return SPORT_CLASSIFICATION.get(sport_name.strip().title(), "unknown")
+
+
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    if PdfReader is None:
+        return ""
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception:
+        return ""
+
+
+def _clean_event_name(name: str) -> str:
+    value = re.sub(r"\s+", " ", (name or "")).strip(" -|")
+    value = re.sub(r"(?i)\b(atp challenger tour|atp challenger)\b", "", value).strip(" -|")
+    return value
+
+
 # -----------------------------------------------------------------------------
-# OFFICIAL CALENDAR FETCHERS
+# IMPROVED OFFICIAL TENNIS EXTRACTION
 # -----------------------------------------------------------------------------
 MONTHS = {
     "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
@@ -410,312 +476,155 @@ def parse_day_month(token: str, year: int) -> Optional[date]:
         return None
 
 
-def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
-    if PdfReader is None:
-        return ""
-    try:
-        reader = PdfReader(io.BytesIO(pdf_bytes))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
-    except Exception:
-        return ""
+def discover_pdf_links_from_page(page_url: str) -> Tuple[List[str], List[str]]:
+    html, _, err = safe_get(page_url)
+    if err or not html:
+        return [], [f"Could not load calendar page for PDF discovery: {err}"]
+
+    pdfs = []
+    for match in re.finditer(r'href="([^"]+\.pdf[^"]*)"', html, flags=re.IGNORECASE):
+        candidate = urljoin(page_url, match.group(1))
+        if candidate not in pdfs:
+            pdfs.append(candidate)
+
+    if not pdfs and BeautifulSoup is not None:
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all("a", href=True):
+            href = tag.get("href", "")
+            if ".pdf" in href.lower():
+                candidate = urljoin(page_url, href)
+                if candidate not in pdfs:
+                    pdfs.append(candidate)
+
+    warnings = []
+    if not pdfs:
+        warnings.append("The official page loaded, but no direct PDF links were exposed in the returned HTML.")
+    return pdfs, warnings
 
 
-def _clean_event_name(name: str) -> str:
-    value = re.sub(r"\s+", " ", (name or "")).strip(" -|")
-    value = re.sub(r"(?i)\b(atp challenger tour|atp challenger)\b", "", value).strip(" -|")
-    return value
-
-
-def _event_from_json_blob(blob: object, source_name: str, default_url: str, week_start: date, week_end: date) -> List[TennisTournament]:
-    events: List[TennisTournament] = []
-    if isinstance(blob, dict):
-        candidates = [blob]
-        for key in ["events", "items", "results", "tournaments", "data", "calendar"]:
-            value = blob.get(key)
-            if isinstance(value, list):
-                candidates.extend(value)
-    elif isinstance(blob, list):
-        candidates = blob
-    else:
-        candidates = []
-
-    for item in candidates:
-        if not isinstance(item, dict):
-            continue
-
-        raw_name = (
-            item.get("name")
-            or item.get("title")
-            or item.get("tournamentName")
-            or item.get("eventName")
-            or item.get("displayName")
-            or ""
-        )
-        if not raw_name:
-            continue
-
-        raw_city = item.get("city") or item.get("location") or item.get("venueCity") or ""
-        raw_country = item.get("country") or item.get("nation") or item.get("venueCountry") or ""
-        raw_category = item.get("category") or item.get("level") or item.get("drawCategory") or item.get("grade") or ""
-        raw_surface = item.get("surface") or item.get("courtSurface") or ""
-        raw_url = item.get("url") or item.get("link") or default_url
-
-        raw_start = (
-            item.get("startDate")
-            or item.get("start_date")
-            or item.get("date")
-            or item.get("weekStart")
-            or ""
-        )
-        raw_end = item.get("endDate") or item.get("end_date") or item.get("weekEnd") or ""
-
-        start_date = None
-        end_date = None
-
-        if isinstance(raw_start, str) and raw_start:
-            start_date = parse_date_flex(raw_start[:10] if "T" in raw_start else raw_start)
-        if isinstance(raw_end, str) and raw_end:
-            end_date = parse_date_flex(raw_end[:10] if "T" in raw_end else raw_end)
-
-        if start_date and not end_date:
-            end_date = start_date + timedelta(days=6)
-
-        if start_date and (start_date > week_end or start_date < week_start):
-            continue
-
-        if not start_date:
-            start_date = week_start
-            end_date = week_end
-
-        events.append(
-            TennisTournament(
-                source=source_name,
-                name=_clean_event_name(raw_name),
-                city=str(raw_city).strip(),
-                country=str(raw_country).strip(),
-                category=str(raw_category).strip() or source_name,
-                surface=normalize_surface(str(raw_surface)),
-                start_date=start_date,
-                end_date=end_date or (start_date + timedelta(days=6)),
-                url=str(raw_url).strip(),
-                confidence="high",
-                notes=f"Named event found through structured data on the official {source_name} source.",
-            )
-        )
-    return events
-
-
-def _extract_json_candidates_from_html(html: str) -> List[object]:
-    blobs: List[object] = []
-    script_patterns = [
-        r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
-        r'<script[^>]*type="application/json"[^>]*>(.*?)</script>',
-        r'window\.__INITIAL_STATE__\s*=\s*({.*?});',
-        r'window\.__NEXT_DATA__\s*=\s*({.*?})</script>',
-        r'__NUXT__\s*=\s*({.*?});',
+def build_guess_pdf_urls(year: int) -> List[str]:
+    next_short = str(year + 1)[-2:]
+    return [
+        OFFICIAL_TENNIS_SOURCES["ATP Tour"]["calendar_pdf_guess"].format(year=year, next_short=next_short),
+        OFFICIAL_TENNIS_SOURCES["ATP Tour"]["fallback_pdf"].format(year=year, prev_year=year - 1),
+        OFFICIAL_TENNIS_SOURCES["ATP Challenger"]["fallback_pdf"].format(year=year),
     ]
-    for pattern in script_patterns:
-        for match in re.finditer(pattern, html, flags=re.DOTALL | re.IGNORECASE):
-            raw = match.group(1).strip()
-            if not raw:
-                continue
-            try:
-                blobs.append(json.loads(raw))
-            except Exception:
-                cleaned = raw.replace("&quot;", '"')
-                try:
-                    blobs.append(json.loads(cleaned))
-                except Exception:
-                    continue
-    return blobs
 
 
-def fetch_atp_main_from_pdf(year: int, week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
-    urls = [
-        OFFICIAL_TENNIS_SOURCES["ATP Tour"]["calendar_pdf"].format(year=year, prev_year=year - 1),
-        f"https://www.atptour.com/-/media/files/calendar-pdfs/{year}/2026-atp-tour-calendar-december-2025.pdf" if year == 2026 else "",
-    ]
-    urls = [u for u in urls if u]
-    warnings: List[str] = []
+def _extract_named_events_from_pdf_text(text: str, source_name: str, week_start: date, week_end: date, url: str) -> List[TennisTournament]:
     tournaments: List[TennisTournament] = []
+    lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines() if line.strip()]
 
-    for url in urls:
-        _, pdf_bytes, err = safe_get(url)
-        if err or not pdf_bytes:
-            warnings.append(f"ATP Tour PDF fetch issue: {err}")
-            continue
-        text = extract_text_from_pdf_bytes(pdf_bytes)
-        if not text:
-            warnings.append("ATP Tour PDF was downloaded but could not be parsed. Install pypdf if needed.")
-            continue
+    atp_like = re.compile(
+        r"(?P<date>\d{1,2}-[A-Z]{3})\s+(?P<city>[A-ZÀ-ÿ'.,\- ]{2,})\s+"
+        r"(?P<category>ATP 250|ATP 500|ATP MASTERS 1000|GRAND SLAM|DAVIS CUP|LAVER CUP|ATP FINALS|NEXT GEN ATP FINALS)\s+"
+        r"(?P<name>[A-ZÀ-ÿ0-9'&.,\- ]{4,}?)\s+(?P<surface>IH|H|CL|G)$"
+    )
 
-        lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines() if line.strip()]
-        broad_pattern = re.compile(
-            r"(?P<date>\d{2}-[A-Z]{3})\s+(?P<city>[A-ZÀ-ÿ'.,\- ]{2,})\s+"
-            r"(?P<category>ATP 250|ATP 500|ATP MASTERS 1000|GRAND SLAM|DAVIS CUP|LAVER CUP|ATP FINALS|NEXT GEN ATP FINALS)\s+"
-            r"(?P<name>[A-ZÀ-ÿ0-9'&.,\- ]{4,}?)\s+(?P<surface>IH|H|CL|G)$"
-        )
+    challenger_like = re.compile(
+        r"(?P<week>\d{1,2})\s+(?P<date>\d{1,2}-[A-Z]{3})\s+(?P<name>[A-Za-zÀ-ÿ0-9'&.\- ]{3,}?)\s+"
+        r"(?P<city>[A-Za-zÀ-ÿ' .\-]+)\s+(?P<country>[A-Z]{3})\s+(?P<cat>\d{2,3})"
+    )
 
-        found_any = False
-        for line in lines:
-            match = broad_pattern.search(line)
-            if not match:
-                continue
-            start = parse_day_month(match.group("date"), year)
+    for line in lines:
+        match = atp_like.search(line)
+        if match:
+            start = parse_day_month(match.group("date"), week_start.year)
             if not start or not (week_start <= start <= week_end):
                 continue
-            found_any = True
             tournaments.append(
                 TennisTournament(
-                    source="ATP Tour",
+                    source=source_name,
                     name=_clean_event_name(match.group("name").title()),
                     city=match.group("city").strip().title(),
                     category=match.group("category").strip().replace("ATP MASTERS 1000", "ATP Masters 1000"),
                     surface=normalize_surface(match.group("surface")),
                     start_date=start,
                     end_date=start + timedelta(days=6),
-                    url=OFFICIAL_TENNIS_SOURCES["ATP Tour"]["tournaments"],
+                    url=url,
                     confidence="high",
-                    notes="Parsed from official ATP Tour calendar PDF.",
+                    notes=f"Named event parsed from official {source_name} PDF.",
                 )
             )
-        if found_any:
-            break
-    return tournaments, warnings
+            continue
 
-
-def fetch_named_events_from_structured_html(url: str, source_name: str, week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
-    html, _, err = safe_get(url)
-    if err or not html:
-        return [], [f"{source_name} HTML fetch issue: {err}"]
-    warnings: List[str] = []
-    events: List[TennisTournament] = []
-
-    for blob in _extract_json_candidates_from_html(html):
-        events.extend(_event_from_json_blob(blob, source_name, url, week_start, week_end))
-
-    if not events and BeautifulSoup is not None:
-        soup = BeautifulSoup(html, "html.parser")
-        text = soup.get_text(" ", strip=True)
-
-        atp_patterns = [
-            re.compile(
-                r"(?P<name>[A-Z][A-Za-z0-9'&.\- ]{3,}?)\s+(?P<city>[A-Za-zÀ-ÿ' .\-]+),\s*(?P<country>[A-Za-zÀ-ÿ' .\-]+)\s+"
-                r"(?P<category>ATP 250|ATP 500|ATP Masters 1000|Grand Slam)\s+(?P<surface>Hard|Clay|Grass|Indoor Hard)?",
-                re.IGNORECASE,
-            ),
-            re.compile(
-                r"(?P<name>Challenger [A-Za-z0-9'&.\- ]+?)\s+(?P<city>[A-Za-zÀ-ÿ' .\-]+),\s*(?P<country>[A-Za-zÀ-ÿ' .\-]+)",
-                re.IGNORECASE,
-            ),
-            re.compile(
-                r"(?P<name>M15 [A-Za-z0-9'&.\- ]+|M25 [A-Za-z0-9'&.\- ]+)\s+(?P<city>[A-Za-zÀ-ÿ' .\-]+),\s*(?P<country>[A-Za-zÀ-ÿ' .\-]+)",
-                re.IGNORECASE,
-            ),
-        ]
-
-        for pattern in atp_patterns:
-            for match in pattern.finditer(text):
-                name = _clean_event_name(match.group("name"))
-                city = (match.groupdict().get("city") or "").strip()
-                country = (match.groupdict().get("country") or "").strip()
-                category = (match.groupdict().get("category") or source_name).strip()
-                surface = normalize_surface((match.groupdict().get("surface") or "").strip())
-                if len(name) < 4:
-                    continue
-                events.append(
-                    TennisTournament(
-                        source=source_name,
-                        name=name,
-                        city=city,
-                        country=country,
-                        category=category,
-                        surface=surface,
-                        start_date=week_start,
-                        end_date=week_end,
-                        url=url,
-                        confidence="medium",
-                        notes=f"Named event found from official {source_name} HTML text fallback.",
-                    )
+        match = challenger_like.search(line)
+        if match:
+            start = parse_day_month(match.group("date"), week_start.year)
+            if not start or not (week_start <= start <= week_end):
+                continue
+            raw_name = _clean_event_name(match.group("name"))
+            city = match.group("city").strip()
+            if not raw_name or raw_name.lower() == city.lower():
+                raw_name = f"ATP Challenger {city}"
+            tournaments.append(
+                TennisTournament(
+                    source=source_name,
+                    name=raw_name,
+                    city=city,
+                    country=match.group("country").strip(),
+                    category=f"Challenger {match.group('cat').strip()}",
+                    start_date=start,
+                    end_date=start + timedelta(days=6),
+                    url=url,
+                    confidence="medium",
+                    notes=f"Named event parsed from official {source_name} PDF.",
                 )
-
-    if not events:
-        warnings.append(f"{source_name} official page loaded, but named events could not be extracted with the current parser.")
-    return events, warnings
+            )
+    return tournaments
 
 
-def fetch_challenger_from_pdf(year: int, week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
-    url = OFFICIAL_TENNIS_SOURCES["ATP Challenger"]["calendar_pdf"].format(year=year)
-    _, pdf_bytes, err = safe_get(url)
-    if err or not pdf_bytes:
-        return [], [f"Challenger PDF fetch issue: {err}"]
-    text = extract_text_from_pdf_bytes(pdf_bytes)
-    if not text:
-        return [], ["Challenger PDF downloaded but could not be parsed. Install pypdf if needed."]
+def fetch_tennis_events_from_official_pdfs(week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
+    year = week_start.year
+    urls, warnings = discover_pdf_links_from_page(OFFICIAL_TENNIS_SOURCES["ATP Tour"]["calendar_page"])
+    challenger_urls, challenger_warnings = discover_pdf_links_from_page(OFFICIAL_TENNIS_SOURCES["ATP Challenger"]["calendar_page"])
+    warnings.extend(challenger_warnings)
+    urls.extend(challenger_urls)
+
+    for guessed in build_guess_pdf_urls(year):
+        if guessed not in urls:
+            urls.append(guessed)
 
     tournaments: List[TennisTournament] = []
-    warnings: List[str] = []
-    lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines() if line.strip()]
-    pattern = re.compile(
-        r"(?P<week>\d{1,2})\s+(?P<date>\d{1,2}-[A-Z]{3})\s+(?P<name>[A-Za-zÀ-ÿ0-9'&.\- ]{3,}?)\s+"
-        r"(?P<city>[A-Za-zÀ-ÿ' .\-]+)\s+(?P<country>[A-Z]{3})\s+(?P<cat>\d{2,3})"
-    )
+    seen_urls = set()
 
-    for line in lines:
-        match = pattern.search(line)
-        if not match:
+    for url in urls:
+        if not url or url in seen_urls:
             continue
-        start = parse_day_month(match.group("date"), year)
-        if not start or not (week_start <= start <= week_end):
+        seen_urls.add(url)
+
+        _, pdf_bytes, err = safe_get(url)
+        if err or not pdf_bytes:
             continue
 
-        raw_name = _clean_event_name(match.group("name"))
-        city = match.group("city").strip()
-        country = match.group("country").strip()
-        category_num = match.group("cat").strip()
+        text = extract_text_from_pdf_bytes(pdf_bytes)
+        if not text:
+            continue
 
-        if not raw_name or raw_name.lower() == city.lower():
-            raw_name = f"ATP Challenger {city}"
+        source_name = "ATP Challenger" if "challenger" in url.lower() else "ATP Tour"
+        tournaments.extend(_extract_named_events_from_pdf_text(text, source_name, week_start, week_end, url))
 
-        tournaments.append(
-            TennisTournament(
-                source="ATP Challenger",
-                name=raw_name,
-                city=city,
-                country=country,
-                category=f"Challenger {category_num}",
-                start_date=start,
-                end_date=start + timedelta(days=6),
-                url=url,
-                confidence="medium",
-                notes="Parsed from official ATP Challenger calendar PDF.",
-            )
-        )
     if not tournaments:
-        warnings.append("Challenger PDF was parsed, but no named tournament matching next week was found.")
+        warnings.append("Official PDFs were checked, but no named event for next week could be extracted from the current file text.")
     return tournaments, warnings
 
 
-def fetch_itf_events(week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
-    named_events, warnings = fetch_named_events_from_structured_html(
-        OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_html"], "ITF", week_start, week_end
-    )
-    if named_events:
-        return named_events, warnings
-
-    html, _, err = safe_get(OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_html"])
+def fetch_itf_events_from_html(week_start: date, week_end: date) -> Tuple[List[TennisTournament], List[str]]:
+    html, _, err = safe_get(OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_page"])
     if err or not html:
         return [], [f"ITF calendar fetch issue: {err}"]
 
+    warnings: List[str] = []
     tournaments: List[TennisTournament] = []
-    page_text = html
+
+    # First pass: if official HTML exposes readable cards with M15/M25/M50 or similar.
     pattern = re.compile(
-        r"\b(?P<category>M15|M25)\s+(?P<name>[A-Za-zÀ-ÿ0-9'&.\- ]+?)\s*[,\-]\s*(?P<country>[A-Za-zÀ-ÿ .\-']+)\b"
+        r"\b(?P<category>M15|M25|M50|M75|M100)\s+(?P<name>[A-Za-zÀ-ÿ0-9'&.\- ]+?)(?:\s*[,\-]\s*(?P<country>[A-Za-zÀ-ÿ .\-']+))?(?=\s{2,}|<|$)"
     )
-    for match in pattern.finditer(page_text):
+    for match in pattern.finditer(html):
         category = match.group("category").strip()
         raw_name = _clean_event_name(match.group("name"))
-        country = match.group("country").strip()
+        country = (match.group("country") or "").strip()
         city = raw_name
         tournaments.append(
             TennisTournament(
@@ -726,13 +635,36 @@ def fetch_itf_events(week_start: date, week_end: date) -> Tuple[List[TennisTourn
                 category=category,
                 start_date=week_start,
                 end_date=week_end,
-                url=OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_html"],
+                url=OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_page"],
                 confidence="medium",
-                notes="Found on official ITF calendar page with a broad fallback parser.",
+                notes="Named event found from official ITF calendar HTML fallback.",
             )
         )
+
+    if not tournaments and BeautifulSoup is not None:
+        soup = BeautifulSoup(html, "html.parser")
+        text = soup.get_text(" ", strip=True)
+        for match in pattern.finditer(text):
+            category = match.group("category").strip()
+            raw_name = _clean_event_name(match.group("name"))
+            country = (match.group("country") or "").strip()
+            tournaments.append(
+                TennisTournament(
+                    source="ITF",
+                    name=f"{category} {raw_name}",
+                    city=raw_name,
+                    country=country,
+                    category=category,
+                    start_date=week_start,
+                    end_date=week_end,
+                    url=OFFICIAL_TENNIS_SOURCES["ITF"]["calendar_page"],
+                    confidence="low",
+                    notes="Named event found from official ITF page text fallback.",
+                )
+            )
+
     if not tournaments:
-        warnings.append("ITF official calendar page loaded, but event cards were not easy to parse with the current page structure.")
+        warnings.append("ITF official page loaded, but named tournaments were not exposed clearly enough for the current parser.")
     return tournaments, warnings
 
 
@@ -757,61 +689,242 @@ def deduplicate_tournaments(tournaments: List[TennisTournament]) -> List[TennisT
 
 def load_next_week_tournaments(reference_date: Optional[date] = None) -> Tuple[List[TennisTournament], List[str], Tuple[date, date]]:
     week_start, week_end = next_week_window(reference_date)
-    year = week_start.year
-    all_events: List[TennisTournament] = []
     warnings: List[str] = []
+    all_events: List[TennisTournament] = []
 
-    atp_main_pdf, warn = fetch_atp_main_from_pdf(year, week_start, week_end)
-    all_events.extend(atp_main_pdf)
-    warnings.extend(warn)
+    pdf_events, pdf_warnings = fetch_tennis_events_from_official_pdfs(week_start, week_end)
+    all_events.extend(pdf_events)
+    warnings.extend(pdf_warnings)
 
-    atp_main_html, warn = fetch_named_events_from_structured_html(
-        OFFICIAL_TENNIS_SOURCES["ATP Tour"]["calendar_page"], "ATP Tour", week_start, week_end
-    )
-    all_events.extend(atp_main_html)
-    warnings.extend(warn)
-
-    challenger_html, warn = fetch_named_events_from_structured_html(
-        OFFICIAL_TENNIS_SOURCES["ATP Challenger"]["calendar_html"], "ATP Challenger", week_start, week_end
-    )
-    all_events.extend(challenger_html)
-    warnings.extend(warn)
-
-    if not challenger_html:
-        challenger_alt, warn = fetch_named_events_from_structured_html(
-            OFFICIAL_TENNIS_SOURCES["ATP Challenger"]["calendar_alt"], "ATP Challenger", week_start, week_end
-        )
-        all_events.extend(challenger_alt)
-        warnings.extend(warn)
-
-    if not challenger_html:
-        challenger_pdf, warn = fetch_challenger_from_pdf(year, week_start, week_end)
-        all_events.extend(challenger_pdf)
-        warnings.extend(warn)
-
-    itf_events, warn = fetch_itf_events(week_start, week_end)
+    itf_events, itf_warnings = fetch_itf_events_from_html(week_start, week_end)
     all_events.extend(itf_events)
-    warnings.extend(warn)
+    warnings.extend(itf_warnings)
 
     return deduplicate_tournaments(all_events), warnings, (week_start, week_end)
 
 
 # -----------------------------------------------------------------------------
+# CHAT-STYLE MULTI-SPORT COUNSELING FLOW
+# -----------------------------------------------------------------------------
+def ensure_counseling_state() -> None:
+    if "counseling_chat_answers" not in st.session_state:
+        st.session_state.counseling_chat_answers = {}
+    if "counseling_chat_history" not in st.session_state:
+        st.session_state.counseling_chat_history = []
+    if "counseling_flow_version" not in st.session_state:
+        st.session_state.counseling_flow_version = "v4"
+
+
+def reset_counseling_flow() -> None:
+    st.session_state.counseling_chat_answers = {}
+    st.session_state.counseling_chat_history = []
+
+
+def push_chat(question: str, answer: str, key: str) -> None:
+    st.session_state.counseling_chat_answers[key] = answer
+    st.session_state.counseling_chat_history.append({"question": question, "answer": answer, "key": key})
+
+
+def get_saved_or_profile_value(key: str, *profile_keys: str) -> Optional[object]:
+    answers = st.session_state.get("counseling_chat_answers", {})
+    if key in answers and answers.get(key) not in [None, "", [], {}]:
+        return answers.get(key)
+    return get_profile_value(*profile_keys)
+
+
+def render_chat_history() -> None:
+    history = st.session_state.get("counseling_chat_history", [])
+    for item in history:
+        with st.chat_message("assistant"):
+            st.write(item["question"])
+        with st.chat_message("user"):
+            st.write(item["answer"])
+
+
+def ask_chat_question(question: str, answer_key: str, profile_keys: Tuple[str, ...] = ()) -> Optional[str]:
+    existing = get_saved_or_profile_value(answer_key, *profile_keys)
+    if existing not in [None, "", [], {}]:
+        if answer_key not in st.session_state.counseling_chat_answers:
+            push_chat(question, str(existing), answer_key)
+        return str(existing)
+
+    with st.chat_message("assistant"):
+        st.write(question)
+
+    answer = st.chat_input("Type your answer and press Enter", key=f"chat_input_{answer_key}")
+    if answer:
+        push_chat(question, answer.strip(), answer_key)
+        st.rerun()
+    return None
+
+
+def sport_selector_value() -> Optional[str]:
+    existing = get_saved_or_profile_value("sport", "sport", "main_sport", "selected_sport")
+    if existing not in [None, "", [], {}]:
+        return str(existing)
+
+    st.markdown("### Sport")
+    selected = st.selectbox(
+        "What sport?",
+        DEFAULT_SPORT_OPTIONS,
+        index=0,
+        key="counseling_sport_selector",
+    )
+    if st.button("Confirm sport", key="confirm_counseling_sport", use_container_width=True):
+        push_chat("What sport?", selected, "sport")
+        st.rerun()
+    return None
+
+
+def professional_status_value() -> Optional[str]:
+    existing = get_saved_or_profile_value("professional_status", "professional_status", "is_professional", "level")
+    if existing not in [None, "", [], {}]:
+        return str(existing)
+    st.markdown("### Athlete level")
+    selected = st.selectbox(
+        "Are you professional?",
+        ["No", "Semi-professional", "Yes"],
+        index=0,
+        key="counseling_professional_selector",
+    )
+    if st.button("Confirm athlete level", key="confirm_counseling_professional", use_container_width=True):
+        push_chat("Are you professional?", selected, "professional_status")
+        st.rerun()
+    return None
+
+
+def build_required_flow(sport: str, sport_type: str) -> List[Tuple[str, str, Tuple[str, ...]]]:
+    flow: List[Tuple[str, str, Tuple[str, ...]]] = []
+
+    if not get_profile_value("sport", "main_sport", "selected_sport"):
+        flow.append(("What sport?", "sport", ("sport", "main_sport", "selected_sport")))
+
+    if not get_profile_value("professional_status", "is_professional", "level"):
+        flow.append(("Are you professional?", "professional_status", ("professional_status", "is_professional", "level")))
+
+    if sport_type == "team":
+        flow.extend(
+            [
+                ("Which team are you in now?", "current_team", ("current_team", "team", "club")),
+                ("Your age?", "age", ("age",)),
+                ("Where do you want to go to?", "target_country", ("target_country", "desired_country")),
+            ]
+        )
+    elif sport_type == "individual":
+        flow.extend(
+            [
+                ("Where are you now?", "current_location", ("current_location", "location", "country")),
+                ("Your ranking?", "ranking", ("ranking", "current_ranking")),
+                ("What's your goal for next week?", "goal_next_week", ("goal_next_week", "main_goal")),
+            ]
+        )
+
+        if sport.strip().lower() == "tennis":
+            flow.extend(
+                [
+                    ("Preferred surface?", "preferred_surface", ("preferred_surface",)),
+                    ("Travel budget for next week?", "travel_budget", ("travel_budget",)),
+                ]
+            )
+    else:
+        flow.extend(
+            [
+                ("Where are you now?", "current_location", ("current_location", "location", "country")),
+                ("Tell me your current level.", "current_level", ("current_level", "level")),
+                ("What's your goal for next week?", "goal_next_week", ("goal_next_week", "main_goal")),
+            ]
+        )
+
+    return flow
+
+
+def render_special_inputs_if_needed(key: str) -> bool:
+    if key == "preferred_surface":
+        existing = get_saved_or_profile_value("preferred_surface", "preferred_surface")
+        if existing not in [None, "", [], {}]:
+            if "preferred_surface" not in st.session_state.counseling_chat_answers:
+                push_chat("Preferred surface?", str(existing), "preferred_surface")
+            return True
+
+        choice = st.selectbox("Preferred surface?", list(TENNIS_SURFACE_PROFILE.keys()), key="counseling_surface_select")
+        if st.button("Confirm preferred surface", key="confirm_surface", use_container_width=True):
+            push_chat("Preferred surface?", choice, "preferred_surface")
+            st.rerun()
+        return True
+
+    if key == "travel_budget":
+        existing = get_saved_or_profile_value("travel_budget", "travel_budget")
+        if existing not in [None, "", [], {}]:
+            if "travel_budget" not in st.session_state.counseling_chat_answers:
+                push_chat("Travel budget for next week?", str(existing), "travel_budget")
+            return True
+
+        choice = st.selectbox("Travel budget for next week?", ["Low", "Medium", "High"], key="counseling_budget_select")
+        if st.button("Confirm travel budget", key="confirm_budget", use_container_width=True):
+            push_chat("Travel budget for next week?", choice, "travel_budget")
+            st.rerun()
+        return True
+
+    return False
+
+
+def collect_counseling_answers() -> Tuple[Optional[str], str, Dict[str, object]]:
+    ensure_counseling_state()
+
+    render_chat_history()
+
+    sport = sport_selector_value()
+    if not sport:
+        return None, "unknown", {}
+
+    sport_type = detect_sport_type(sport)
+
+    prof = professional_status_value()
+    if not prof:
+        return sport, sport_type, {}
+
+    required = build_required_flow(sport, sport_type)
+    collected: Dict[str, object] = {"sport": sport, "sport_type": sport_type, "professional_status": prof}
+
+    for question, key, profile_keys in required:
+        if key in {"sport", "professional_status"}:
+            continue
+
+        if render_special_inputs_if_needed(key):
+            value = get_saved_or_profile_value(key, *profile_keys)
+            if value in [None, "", [], {}]:
+                return sport, sport_type, collected
+            collected[key] = value
+            continue
+
+        answer = ask_chat_question(question, key, profile_keys)
+        if answer is None:
+            return sport, sport_type, collected
+        collected[key] = answer
+
+    return sport, sport_type, collected
+
+
+# -----------------------------------------------------------------------------
 # TENNIS COUNSELING
 # -----------------------------------------------------------------------------
-def build_tennis_profile(
-    ranking: int,
-    location: str,
-    preferred_surface: str,
-    travel_budget: str,
-    objective: str,
-) -> Dict[str, object]:
+def build_tennis_profile(collected: Dict[str, object]) -> Dict[str, object]:
+    ranking_raw = str(collected.get("ranking", "9999")).strip()
+    ranking = int(re.sub(r"[^\d]", "", ranking_raw) or "9999")
+
+    goal = str(collected.get("goal_next_week", "")).strip()
+    if goal not in INDIVIDUAL_GOALS:
+        mapped_goal = "Other"
+    else:
+        mapped_goal = goal
+
     return {
         "ranking": ranking,
-        "location": location,
-        "preferred_surface": preferred_surface,
-        "travel_budget": travel_budget,
-        "objective": objective,
+        "location": str(collected.get("current_location", "")),
+        "preferred_surface": str(collected.get("preferred_surface", "Hard")),
+        "travel_budget": str(collected.get("travel_budget", "Medium")),
+        "objective": mapped_goal,
+        "written_goal": goal,
     }
 
 
@@ -835,44 +948,29 @@ def render_tournament_card(event: TennisTournament, ranking: int, preferred_surf
             st.markdown(f"[Official page]({event.url})")
 
 
-def render_tennis_counseling() -> None:
-    st.subheader("Tennis Tournament Counseling")
-    st.write(
-        "Professional tournament guidance using the following week's official ATP Tour, ATP Challenger, and ITF calendars. "
-        "This version is focused on naming actual tournaments, not only showing the week window, and it remains ready for future API integration."
-    )
-
-    col1, col2 = st.columns(2)
-    with col1:
-        ranking = st.number_input("Current ATP ranking", min_value=1, max_value=5000, value=850)
-        location = st.text_input("Where are you now?", placeholder="Example: São Paulo, Brazil")
-        preferred_surface = st.selectbox("Preferred surface", list(TENNIS_SURFACE_PROFILE.keys()))
-    with col2:
-        travel_budget = st.selectbox("Travel budget for next week", ["Low", "Medium", "High"])
-        objective = st.selectbox(
-            "Main objective",
-            ["Get match wins", "Try a bigger event", "Build points safely", "Come back with confidence"],
-        )
-        refresh_live = st.checkbox("Refresh official calendar data now", value=True)
+def render_tennis_counseling_from_flow(collected: Dict[str, object]) -> None:
+    tennis_profile = build_tennis_profile(collected)
+    ranking = int(tennis_profile["ranking"])
+    location = str(tennis_profile["location"])
+    preferred_surface = str(tennis_profile["preferred_surface"])
+    travel_budget = str(tennis_profile["travel_budget"])
+    objective = str(tennis_profile["objective"])
 
     st.info(
-        f"Travel framework: {BUDGET_TO_DISTANCE[travel_budget]}\n\n"
-        f"Objective lens: {OBJECTIVE_GUIDANCE[objective]}"
+        f"Travel framework: {BUDGET_TO_DISTANCE.get(travel_budget, BUDGET_TO_DISTANCE['Medium'])}\n\n"
+        f"Objective lens: {OBJECTIVE_GUIDANCE.get(objective, OBJECTIVE_GUIDANCE['Other'])}"
     )
 
     with st.expander("Surface profile guidance", expanded=False):
-        for line in TENNIS_SURFACE_PROFILE[preferred_surface]:
+        for line in TENNIS_SURFACE_PROFILE.get(preferred_surface, []):
             st.write(f"- {line}")
 
-    if st.button("Get Tennis Advice", type="primary", use_container_width=True):
-        profile = build_tennis_profile(ranking, location, preferred_surface, travel_budget, objective)
+    if st.button("Get counseling advice", type="primary", use_container_width=True, key="run_tennis_counseling"):
+        profile = build_tennis_profile(collected)
         context: Dict[str, object] = {"calendar_mode": "official_sources_following_week_named_events"}
 
-        if refresh_live:
-            with st.spinner("Checking official ATP / Challenger / ITF calendar sources for next week's named tournaments..."):
-                tournaments, warnings, week_range = load_next_week_tournaments()
-        else:
-            tournaments, warnings, week_range = [], ["Live fetch disabled by user toggle."], next_week_window()
+        with st.spinner("Checking official ATP, Challenger, and ITF sources for next week's named tournaments..."):
+            tournaments, warnings, week_range = load_next_week_tournaments()
 
         context["next_week_window"] = [week_range[0].isoformat(), week_range[1].isoformat()]
         context["found_tournaments"] = len(tournaments)
@@ -906,8 +1004,9 @@ def render_tennis_counseling() -> None:
                 render_tournament_card(event, ranking, preferred_surface, travel_budget, objective, location)
         else:
             st.warning(
-                "No named tournament cards could be confirmed from the official pages with the current parser. "
-                "The structure is ready and still checks the following week automatically, but the source selectors may need adjustment if the official site structure changes."
+                "No named tournament was confirmed from the current official source structure. "
+                "The improved version now checks official ATP and Challenger PDFs plus the ITF page, "
+                "but if those official structures change again, the selectors may need another adjustment."
             )
 
         st.subheader("Professional decision checklist")
@@ -931,192 +1030,117 @@ def render_tennis_counseling() -> None:
 
 
 # -----------------------------------------------------------------------------
-# SOCCER COUNSELING
+# GENERIC TEAM / INDIVIDUAL COUNSELING
 # -----------------------------------------------------------------------------
-def age_bucket(age: int) -> str:
-    if age < 15:
-        return "under_15"
-    if age <= 17:
-        return "15_to_17"
-    if age <= 21:
-        return "18_to_21"
-    return "22_plus"
+def render_team_sport_counseling(collected: Dict[str, object]) -> None:
+    sport = str(collected.get("sport", "Team sport"))
+    current_team = str(collected.get("current_team", ""))
+    age_raw = str(collected.get("age", "")).strip()
+    target_country = str(collected.get("target_country", ""))
+    professional_status = str(collected.get("professional_status", ""))
 
+    try:
+        age = int(re.sub(r"[^\d]", "", age_raw) or "0")
+    except Exception:
+        age = 0
 
-def get_division_examples(country: str, age: int) -> List[str]:
-    base = SOCCER_DIVISION_GUIDE.get(country, SOCCER_DIVISION_GUIDE["Default"]).copy()
-    if age <= 20:
-        return base
-    return [entry for entry in base if "Academy" not in entry]
+    current_continent_hint = TEAM_COUNTRY_HINTS.get(target_country, "Unknown")
 
+    profile = {
+        "sport": sport,
+        "sport_type": "team",
+        "current_team": current_team,
+        "age": age,
+        "target_country": target_country,
+        "professional_status": professional_status,
+    }
 
-def suggest_soccer_path(
-    age: int,
-    current_country: str,
-    current_division: str,
-    target_continent: str,
-    target_country: str,
-    details: str,
-) -> Tuple[str, List[str], List[str]]:
-    reasons: List[str] = []
-    filters: List[str] = []
-
-    bucket = age_bucket(age)
-    age_note = AGE_DEVELOPMENT_NOTES[bucket]
-    reasons.append(age_note)
-
-    division_lower = current_division.lower()
-    target_country_clean = target_country.strip() or "the target country"
-
-    if "academy" in division_lower or "u" in division_lower:
-        recommendation = f"Prioritize a development-first move to {target_country_clean}, only if coaching quality, pathway, and minutes are clearly better than your current environment."
-        reasons.extend([
-            "At academy stage, the wrong badge is less important than the wrong pathway.",
-            "A better developmental structure is more valuable than a club that only sounds bigger.",
-        ])
-    elif "amateur" in division_lower or "semi" in division_lower:
-        recommendation = f"Look for a realistic bridge move to {target_country_clean} where you can actually play, adapt, and earn the next step."
-        reasons.extend([
-            "From amateur or semi-pro level, stability and game minutes usually matter more than prestige.",
-            "Your best move is often one level above your current reality, not three levels above it.",
-        ])
-    elif "second" in division_lower or "serie b" in division_lower or "championship" in division_lower or "liga portugal 2" in division_lower:
-        recommendation = f"Target a competitive move to {target_country_clean} only if it improves level, exposure, or tactical fit without reducing your role too much."
-        reasons.extend([
-            "At this level, a move should improve both sporting level and career visibility.",
-            "A stronger but tactically wrong move can still slow your progression.",
-        ])
-    elif "top-flight" in division_lower or "serie a" in division_lower or "premier league" in division_lower or "laliga" in division_lower:
-        recommendation = f"Only move to {target_country_clean} if the role, tactical fit, and exposure value are clearly stronger than your current situation."
-        reasons.extend([
-            "At a high level, the issue is usually role quality, not only league name.",
-            "You should optimize the next contract and the next two years, not only the next headline.",
-        ])
-    else:
-        recommendation = f"Build a pathway to {target_country_clean} that matches your age, current division, and likelihood of meaningful minutes."
-        reasons.extend([
-            "Your next move should be structurally logical, not only emotionally exciting.",
-            "The best pathway is the one that improves the next move after this one as well.",
-        ])
-
-    if current_country.strip().lower() == target_country.strip().lower() and target_country.strip():
-        reasons.append("Because the current and target country are the same, the decision should focus even more on division quality, minutes, and coach fit.")
-    else:
-        reasons.append("Because this may involve international adaptation, language, style of play, and legal/registration timing also matter.")
-
-    if details.strip():
-        reasons.append("The personal details you added should be weighed against contract safety, pathway clarity, and real playing opportunity.")
-    else:
-        reasons.append("Without extra details, the safest advice is to prioritize pathway clarity over brand name.")
-
-    filters.extend([
-        "Will you realistically play meaningful minutes there?",
-        "Is the target division a logical next step from your current division?",
-        "Does the move improve your development profile for your age?",
-        "Is the club's style a fit for your strongest qualities?",
-        "Is the contract or trial situation safe and clearly structured?",
-        "Will this move improve your next move, not only your current headline?",
-    ])
-
-    if bucket in {"under_15", "15_to_17"}:
-        filters.append("For your age, is the coaching and development environment clearly better?")
-    if target_continent.strip():
-        filters.append(f"Is {target_continent} really the right football market for your current stage, or only the most attractive name?")
-
-    return recommendation, reasons, filters
-
-
-def render_soccer_counseling() -> None:
-    st.subheader("Soccer Career Counseling")
-    st.write(
-        "A more professional funnel focused on age, current country, current division, destination, and pathway logic. "
-        "This version removes the old team-name-first flow and remains API ready."
+    payload = build_future_api_payload(
+        f"{sport.lower().replace(' ', '_')}_team_counseling",
+        profile,
+        {
+            "reasoning_mode": "multi_sport_team_pathway",
+            "future_api_tasks": [
+                "detect current team country",
+                "detect division and competition quality",
+                "search realistic target markets",
+                "evaluate transfer logic by age and level",
+            ],
+        },
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        age = st.number_input("What's your age?", min_value=8, max_value=45, value=17, step=1)
-        current_country = st.text_input("What country are you now?", placeholder="Example: Brazil")
-        current_division = st.text_input(
-            "Which division are you in now?",
-            placeholder="Example: Academy / U20, Semi-pro, Serie D, Liga 3, Championship...",
-        )
-    with col2:
-        target_continent = st.selectbox("Which continent do you want to go to?", list(SOCCER_CONTINENTS.keys()))
-        target_country = st.selectbox("What country inside that continent?", SOCCER_CONTINENTS[target_continent])
-        division_examples = get_division_examples(current_country.strip() or "Default", int(age))
-
-    if current_country or age:
-        with st.expander("Division examples for this stage", expanded=False):
-            st.write("These are example labels to help the user answer the division question more precisely:")
-            for item in division_examples:
-                st.write(f"- {item}")
-
-    details = st.text_area(
-        "Tell some important details",
-        placeholder=(
-            "Write position, level, recent minutes, passport situation, trials, injuries, dominant foot, "
-            "physical profile, goals, or anything important about your situation."
-        ),
+    st.subheader(f"{sport} counseling")
+    st.success(
+        f"Pathway focus: move only if the next environment improves your level, playing opportunity, and long-term pathway more than your current one."
     )
 
-    if st.button("Get Soccer Advice", type="primary", use_container_width=True):
-        profile = {
-            "age": int(age),
-            "current_country": current_country,
-            "current_division": current_division,
-            "target_continent": target_continent,
-            "target_country": target_country,
-            "details": details,
-        }
-        future_payload = build_future_api_payload(
-            "soccer_counseling",
-            profile,
-            {
-                "mode": "career_pathway",
-                "funnel": [
-                    "age",
-                    "current_country",
-                    "current_division",
-                    "target_continent",
-                    "target_country",
-                    "details",
-                ],
-            },
-        )
+    st.write(f"- Current team: {current_team or 'Not provided'}")
+    st.write(f"- Age: {age if age else 'Not confirmed'}")
+    st.write(f"- Target destination: {target_country or 'Not provided'}")
+    st.write(f"- Current level marker: {professional_status or 'Not provided'}")
 
-        recommendation, reasons, filters = suggest_soccer_path(
-            int(age),
-            current_country,
-            current_division,
-            target_continent,
-            target_country,
-            details,
-        )
+    guidance = [
+        "For team sports, the future API should identify your current club, country, competition level, and realistic next markets automatically.",
+        "Age matters a lot: younger athletes should prioritize pathway, coaching quality, and minutes over club name.",
+        "If the move is international, adaptation, language, registration timing, and match opportunity need to be stronger than the prestige factor.",
+        "The smartest move is usually the one that improves your next move too, not only your current headline.",
+    ]
+    for item in guidance:
+        st.write(f"- {item}")
 
-        st.markdown("## Recommended pathway")
-        st.success(recommendation)
+    st.info(
+        f"API-ready note: when connected, this section can detect the country and level of {current_team or 'your current team'} and compare it with target opportunities in {target_country or 'your destination market'}."
+    )
+    st.caption(f"Target market continent hint: {current_continent_hint}")
 
-        st.markdown("### Why this is the smarter move")
-        for reason in reasons:
-            st.write(f"- {reason}")
+    with st.expander("Future API integration preview", expanded=False):
+        st.json(payload)
+        st.caption("Prepared for future reasoning/API implementation, but no API is connected yet.")
 
-        st.markdown("### Smart decision filters")
-        for f in filters:
-            st.write(f"- {f}")
 
-        if current_country.strip():
-            st.info(
-                f"Current country noted: {current_country}. The advice is being shaped first by age, country, division, and destination rather than by a team-name shortcut."
-            )
-        if current_division.strip():
-            st.caption(f"Current division noted: {current_division}")
-        if details.strip():
-            st.caption(f"Additional details noted: {details}")
+def render_individual_generic_counseling(collected: Dict[str, object]) -> None:
+    sport = str(collected.get("sport", "Individual sport"))
+    profile = {
+        "sport": sport,
+        "sport_type": "individual",
+        "current_location": str(collected.get("current_location", "")),
+        "ranking": str(collected.get("ranking", "")),
+        "goal_next_week": str(collected.get("goal_next_week", "")),
+        "professional_status": str(collected.get("professional_status", "")),
+    }
+    payload = build_future_api_payload(
+        f"{sport.lower().replace(' ', '_')}_individual_counseling",
+        profile,
+        {
+            "reasoning_mode": "multi_sport_individual_pathway",
+            "future_api_tasks": [
+                "search next week's relevant competitions",
+                "classify event level",
+                "compare event fit to athlete ranking and goal",
+            ],
+        },
+    )
 
-        with st.expander("Future API integration preview", expanded=False):
-            st.json(future_payload)
-            st.caption("Prepared for future reasoning/API implementation, but no API is connected yet.")
+    st.subheader(f"{sport} counseling")
+    st.success(
+        "This flow is now prepared for future API integration: it already collects the right athlete context first, then it can later attach live event logic sport by sport."
+    )
+
+    st.write(f"- Current location: {profile['current_location'] or 'Not provided'}")
+    st.write(f"- Ranking / level marker: {profile['ranking'] or 'Not provided'}")
+    st.write(f"- Goal for next week: {profile['goal_next_week'] or 'Not provided'}")
+    st.write(f"- Current level marker: {profile['professional_status'] or 'Not provided'}")
+
+    for item in [
+        "For individual sports, the recommendation should be based on where you are now, your current level, and what next week needs to achieve.",
+        "When the API is connected, this section can search named competitions, compare event level, and suggest the smartest event instead of only giving generic advice.",
+        "The next recommendation should always balance prestige, realistic entry, travel cost, recovery, and developmental value.",
+    ]:
+        st.write(f"- {item}")
+
+    with st.expander("Future API integration preview", expanded=False):
+        st.json(payload)
+        st.caption("Prepared for future reasoning/API implementation, but no API is connected yet.")
 
 
 # -----------------------------------------------------------------------------
@@ -1125,11 +1149,30 @@ def render_soccer_counseling() -> None:
 def render_counseling_section() -> None:
     st.header("Counseling")
     st.write(
-        "Professional counseling with improved structure, API-ready architecture, and live-calendar support hooks for tennis."
+        "Professional multi-sport counseling with chat-style intake, homepage/profile memory support, and stronger tennis tournament naming logic."
     )
-    mode = st.radio("Choose counseling mode", ["Tennis", "Soccer"], horizontal=True)
 
-    if mode == "Tennis":
-        render_tennis_counseling()
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        st.caption("If the homepage already collected the sport/profile, this section uses it and skips repeated questions.")
+    with col_b:
+        if st.button("Reset counseling flow", use_container_width=True, key="reset_counseling_flow_btn"):
+            reset_counseling_flow()
+            st.rerun()
+
+    sport, sport_type, collected = collect_counseling_answers()
+    if not sport:
+        return
+
+    st.divider()
+    st.markdown("### Current counseling profile")
+    st.json(collected)
+
+    if sport.strip().lower() == "tennis":
+        render_tennis_counseling_from_flow(collected)
+        return
+
+    if sport_type == "team":
+        render_team_sport_counseling(collected)
     else:
-        render_soccer_counseling()
+        render_individual_generic_counseling(collected)
