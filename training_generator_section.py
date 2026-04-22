@@ -1,18 +1,20 @@
-
+import hashlib
 import random
 import re
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from typing import Callable, Dict, List, Optional, Tuple
 
 import streamlit as st
 
 
 # =============================================================================
-# ELITE / PRO TRAINING GENERATOR
-# - Built from the user's original architecture
-# - Same core idea preserved: structured sport library + dynamic session builder
-# - Expanded for a more elite feel, deeper profiling, readiness, intensity,
-#   progression, weekly planning, coaching notes, and better UI output
+# SPORTZE.AI - UNIFIED CHAT TRAINING GENERATOR
+# - Built from the current generator architecture, but turned into a chat flow
+# - Homepage onboarding is absorbed here
+# - Same profile questions stay conceptually the same, but are asked one by one
+# - Works for any sport in chat; structured library is used when supported
+# - Gym sessions gain a training summary logger with reps / weight / skipped option
 # =============================================================================
 
 
@@ -35,9 +37,6 @@ class Exercise:
     risk_notes: List[str] = field(default_factory=list)
 
 
-# -----------------------------------------------------------------------------
-# SPORT CONFIGURATION
-# -----------------------------------------------------------------------------
 SPORT_POSITIONS: Dict[str, List[str]] = {
     "Soccer": ["Goalkeeper", "Centre Back", "Full Back", "Wing Back", "Defensive Midfielder", "Central Midfielder", "Attacking Midfielder", "Winger", "Striker"],
     "Basketball": ["Point Guard", "Shooting Guard", "Small Forward", "Power Forward", "Center"],
@@ -63,473 +62,26 @@ GOALS = [
 LEVELS = ["Beginner", "Intermediate", "Advanced", "Elite"]
 SESSION_TYPES = ["Balanced Session", "Technical Priority", "Physical Priority", "Competition Week"]
 EQUIPMENT_LEVELS = ["Minimal", "Basic", "Medium", "Competitive", "Elite"]
-
 INTENSITY_MODES = ["Controlled", "Standard", "High", "Peak"]
 READINESS_OPTIONS = ["Low", "Moderate", "High"]
 PRIMARY_FOCUS_OPTIONS = ["Speed", "Power", "Technical Quality", "Conditioning", "Strength", "Movement Quality", "Match Rhythm"]
 SEASON_PHASES = ["Off-Season", "Pre-Season", "In-Season", "Competition Block", "Return-to-Play Support"]
 
-
-EQUIPMENT_LEVEL_DETAILS: Dict[str, Dict[str, List[str] | str]] = {
-    "Minimal": {
-        "label": "Minimal",
-        "description": "Very limited setup. Mostly bodyweight, open space, and basic self-organized work.",
-        "includes": ["Bodyweight", "Open space", "Wall or target", "Floor or grass area"],
-    },
-    "Basic": {
-        "label": "Basic",
-        "description": "Simple field or court access plus a few standard tools.",
-        "includes": ["Balls or sport implement", "Cones", "Bands", "Basic court/field access"],
-    },
-    "Medium": {
-        "label": "Medium",
-        "description": "Good general training setup for most athletes.",
-        "includes": ["Cones", "Balls", "Resistance bands", "Dumbbells", "Medicine ball", "Court/field/pool access"],
-    },
-    "Competitive": {
-        "label": "Competitive",
-        "description": "Strong club-level training environment with quality support resources.",
-        "includes": ["Full court/field/pool setup", "Gym access", "Strength equipment", "Agility equipment", "Recovery tools"],
-    },
-    "Elite": {
-        "label": "Elite",
-        "description": "High-performance environment with broad equipment and support capacity.",
-        "includes": ["Complete sport facility", "Full gym", "Specialized tools", "Monitoring resources", "Recovery resources"],
-    },
+KNOWN_TEAM_SPORTS = {
+    "soccer", "football", "basketball", "volleyball", "water polo", "baseball", "softball", "rugby",
+    "handball", "futsal", "hockey", "lacrosse", "cricket", "american football",
+}
+KNOWN_INDIVIDUAL_SPORTS = {
+    "tennis", "running", "athletics", "track", "swimming", "gym", "fitness", "weightlifting", "rowing",
+    "boxing", "judo", "taekwondo", "karate", "wrestling", "golf", "surfing", "cycling", "triathlon",
+    "badminton", "table tennis", "skateboarding",
 }
 
-
-# -----------------------------------------------------------------------------
-# FUTURE API-READY STRUCTURES (PLACEHOLDERS ONLY - NO API YET)
-# -----------------------------------------------------------------------------
-API_READY_CONFIG = {
-    "enabled": False,
-    "provider": None,
-    "model": None,
-    "reasoning_mode": None,
-    "research_mode": None,
-}
-
-
-def build_future_api_payload(profile: Dict[str, object]) -> Dict[str, object]:
-    return {
-        "athlete_profile": profile,
-        "generator_version": "training_generator_pro_v1_api_ready",
-        "requested_output": {
-            "format": "structured_elite_training_session",
-            "needs_reasoning": True,
-            "needs_professional_tone": True,
-            "needs_measurable_prescriptions": True,
-            "needs_sport_specific_progression": True,
-            "needs_dynamic_time_allocation": True,
-            "needs_readiness_adjustment": True,
-            "needs_phase_context": True,
-        },
-        "future_modules": ["training_generation", "counseling", "video_review", "physio_support", "analytics_dashboard"],
-        "api_status": "not_connected_yet",
-    }
-
-
-# -----------------------------------------------------------------------------
-# TRAINING LIBRARY
-# -----------------------------------------------------------------------------
-SPORT_LIBRARY: Dict[str, Dict[str, List[Exercise]]] = {
-    "Soccer": {
-        "Warm-Up": [
-            Exercise(
-                "Jog + mobility flow", "Warm-Up", "6 minutes easy jog + 6 mobility reps each movement",
-                "Raise body temperature and open hips/ankles.",
-                ["Bodyweight", "Open space"], ["Low"], ["Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"],
-                ["Off-Season", "Pre-Season", "In-Season", "Competition Block"], 1.1,
-                ["Stay tall through the trunk", "Increase range progressively"], ["Add skips between mobility drills"], ["Reduce ROM if stiff today"], []
-            ),
-            Exercise(
-                "Dynamic activation", "Warm-Up", "2 rounds of 20m each: high knees, butt kicks, side shuffles",
-                "Prepare sprint mechanics.",
-                ["Open space"], ["Low", "Moderate"], ["Speed"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "In-Season", "Competition Block"], 0.9,
-                ["Fast contacts, relaxed shoulders", "Finish each line with quality posture"], ["Add build-up accelerations"], ["Reduce total distance if fatigued"], []
-            ),
-            Exercise(
-                "Acceleration prep runs", "Warm-Up", "4 reps x 12m progressive build-up",
-                "Prime the nervous system before speed work.",
-                ["Open space"], ["Moderate"], ["Speed"], ["Winger", "Striker", "Full Back", "Wing Back"], ["Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "Competition Block"], 0.9,
-                ["Start smooth, finish sharp", "Full intent without overreaching"], ["Add one more rep for advanced athletes"], ["Use 8m distance on low-readiness days"], []
-            ),
-        ],
-        "Technical": [
-            Exercise(
-                "First-touch passing circuit", "Technical", "4 rounds x 3 minutes, 45 seconds rest",
-                "Improve control and passing rhythm.",
-                ["Ball", "Open space"], ["Moderate"], ["Technical Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"],
-                ["Off-Season", "Pre-Season", "In-Season"], 1.0,
-                ["Open body before reception", "Scan before first touch"], ["Limit touches", "Use weaker foot emphasis"], ["Increase space between reps"], []
-            ),
-            Exercise(
-                "Dribble slalom + exit sprint", "Technical", "6 reps x 20m, walk-back recovery",
-                "Tight control under speed.",
-                ["Ball", "Cones"], ["Moderate", "High"], ["Speed", "Technical Quality"], ["Winger", "Striker", "Attacking Midfielder", "Full Back"], ["Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "In-Season"], 0.85,
-                ["Last touch sets up the sprint", "Keep center of mass under control"], ["Finish with shot or pass"], ["Shorten slalom distance"], []
-            ),
-            Exercise(
-                "Crossing and finishing", "Technical", "5 reps each side + 10 finishes",
-                "Wide delivery and box timing.",
-                ["Ball", "Goal", "Field"], ["Moderate"], ["Technical Quality", "Match Rhythm"], ["Winger", "Full Back", "Wing Back", "Striker"], ["Intermediate", "Advanced", "Elite"],
-                ["In-Season", "Competition Block"], 1.15,
-                ["Attack the box with speed", "Quality over volume on delivery"], ["Add passive defender"], ["Reduce finishing volume"], []
-            ),
-            Exercise(
-                "Short combination patterns", "Technical", "5 rounds x 90 seconds",
-                "Improve one-touch rhythm and support angles.",
-                ["Ball", "Cones"], ["Moderate"], ["Technical Quality"], ["Central Midfielder", "Attacking Midfielder", "Defensive Midfielder"], ["Intermediate", "Advanced", "Elite"],
-                ["In-Season", "Competition Block"], 0.9,
-                ["Third-man run timing matters", "Receive side-on when possible"], ["Add a pressing trigger"], ["Allow extra touch"], []
-            ),
-        ],
-        "Physical": [
-            Exercise(
-                "Acceleration sprints", "Physical", "8 reps x 15m, 40 seconds rest",
-                "Explosive first steps.",
-                ["Open space"], ["High"], ["Speed"], ["All"], ["Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "In-Season", "Competition Block"], 0.85,
-                ["Win the first three steps", "Push, do not pop up early"], ["Add resisted starts"], ["Reduce to 6 reps"], ["Stop if hamstring tightness rises"]
-            ),
-            Exercise(
-                "Repeated sprint block", "Physical", "2 sets of 6 x 20m, 20 seconds rest between reps, 2 minutes between sets",
-                "Match-like repeatability.",
-                ["Open space"], ["High"], ["Conditioning", "Speed"], ["All"], ["Advanced", "Elite"],
-                ["Pre-Season", "In-Season"], 1.0,
-                ["Keep mechanics even when tired", "Do not chase volume if speed collapses"], ["Add change of direction"], ["Reduce one rep per set"], ["Monitor heavy leg fatigue"]
-            ),
-            Exercise(
-                "Split squats", "Physical", "3 sets x 8 reps each leg",
-                "Single-leg strength.",
-                ["Bodyweight", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"],
-                ["Off-Season", "Pre-Season", "In-Season"], 0.9,
-                ["Front foot rooted", "Control the bottom position"], ["Load heavier or pause 2 seconds"], ["Use bodyweight only"], []
-            ),
-            Exercise(
-                "Nordic hamstring support", "Physical", "2-3 sets x 4-6 reps",
-                "Posterior-chain resilience and sprint protection.",
-                ["Bodyweight", "Partner"], ["Moderate", "High"], ["Strength", "Injury Prevention"], ["All"], ["Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "In-Season"], 0.8,
-                ["Control the lowering phase", "Quality beats max range"], ["Add one rep per set"], ["Shorter range"], ["Avoid if acute hamstring pain exists"]
-            ),
-        ],
-        "Tactical": [
-            Exercise(
-                "Small-sided game", "Tactical", "4 rounds x 4 minutes, 2 minutes rest",
-                "Decision-making under pressure.",
-                ["Ball", "Field"], ["High"], ["Match Rhythm", "Conditioning"], ["All"], ["Intermediate", "Advanced", "Elite"],
-                ["Pre-Season", "In-Season"], 1.3,
-                ["Coach transitions aggressively", "Manipulate space to target the objective"], ["Touch limits or overload side"], ["Reduce pitch size and work time"], []
-            ),
-            Exercise(
-                "Pressing shape rehearsal", "Tactical", "5 rounds x 2 minutes",
-                "Team organization and triggers.",
-                ["Ball", "Field"], ["Moderate"], ["Technical Quality", "Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"],
-                ["In-Season", "Competition Block"], 0.95,
-                ["First presser sets the cue", "Back line must stay connected"], ["Add directional target"], ["Walk-through intensity"], []
-            ),
-        ],
-        "Recovery": [
-            Exercise(
-                "Breathing walk + stretch", "Recovery", "6 minutes walk + 30 seconds per stretch",
-                "Downregulate and improve recovery.",
-                ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"],
-                ["Off-Season", "Pre-Season", "In-Season", "Competition Block"], 0.8,
-                ["Long exhale, slow nasal inhale", "Stretch what feels most loaded today"], ["Add light foam roll"], ["Reduce total hold time"], []
-            ),
-        ],
-    },
-
-    "Basketball": {
-        "Warm-Up": [
-            Exercise("Court movement warm-up", "Warm-Up", "2 rounds of 4 minutes", "Prepare hips, calves, shoulders.", ["Court"], ["Low"], ["Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 1.0),
-            Exercise("Ball-handling activation", "Warm-Up", "3 minutes continuous", "Wake up handle and coordination.", ["Ball"], ["Low"], ["Technical Quality"], ["Guard", "Point Guard", "Shooting Guard"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-            Exercise("Landing prep series", "Warm-Up", "2 sets x 5 snap-downs + 2 sets x 5 pogo jumps", "Prime safe landing mechanics.", ["Court"], ["Low", "Moderate"], ["Power", "Movement Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-        ],
-        "Technical": [
-            Exercise("Form shooting", "Technical", "25 made shots", "Shooting mechanics.", ["Ball", "Court"], ["Low", "Moderate"], ["Technical Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.95),
-            Exercise("Cone change-of-direction dribble", "Technical", "6 reps each side", "Ball control and footwork.", ["Ball", "Cones"], ["Moderate"], ["Speed", "Technical Quality"], ["Point Guard", "Shooting Guard", "Small Forward"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-            Exercise("Pick-and-roll reads", "Technical", "4 rounds x 3 minutes", "Game reads.", ["Ball", "Court"], ["Moderate"], ["Technical Quality", "Match Rhythm"], ["Point Guard", "Center", "Power Forward"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.1),
-            Exercise("Closeout to contest drill", "Technical", "5 rounds x 4 reps", "Defensive footwork and control.", ["Court", "Ball"], ["Moderate"], ["Movement Quality", "Technical Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.9),
-        ],
-        "Physical": [
-            Exercise("Countermovement jumps", "Physical", "4 sets x 5 reps", "Vertical power.", ["Bodyweight"], ["High"], ["Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 0.8),
-            Exercise("Defensive slide intervals", "Physical", "6 reps x 20 seconds, 40 seconds rest", "Lateral conditioning.", ["Court"], ["High"], ["Conditioning", "Movement Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.9),
-            Exercise("Push-ups", "Physical", "3 sets x 10-15 reps", "Upper-body strength.", ["Bodyweight"], ["Moderate"], ["Strength"], ["All"], ["Beginner", "Intermediate", "Advanced"], ["Off-Season", "Pre-Season", "In-Season"], 0.8),
-            Exercise("Rear-foot elevated split squat", "Physical", "3 sets x 8 reps each leg", "Single-leg strength and deceleration support.", ["Bench", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 0.95),
-        ],
-        "Tactical": [
-            Exercise("Advantage game", "Tactical", "5 rounds x 3 minutes", "Transition decisions.", ["Ball", "Court"], ["High"], ["Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.15),
-        ],
-        "Recovery": [
-            Exercise("Light mobility", "Recovery", "8 minutes", "Joint recovery.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-    },
-
-    "Tennis": {
-        "Warm-Up": [
-            Exercise("Mini tennis + mobility", "Warm-Up", "8 minutes total", "Feel and footwork.", ["Racket", "Ball", "Court"], ["Low"], ["Technical Quality", "Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 1.1),
-            Exercise("Split-step reaction drill", "Warm-Up", "3 sets x 45 seconds", "Timing and readiness.", ["Court"], ["Moderate"], ["Speed"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.75),
-            Exercise("Serve shoulder prep", "Warm-Up", "2 sets x 8 reps each movement", "Prepare the shoulder complex for serving volume.", ["Bands", "Bodyweight"], ["Low"], ["Movement Quality"], ["Singles Player", "Doubles Specialist", "Serve-and-Volley Player"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Crosscourt consistency", "Technical", "4 rounds x 4 minutes", "Rally tolerance.", ["Racket", "Ball", "Court"], ["Moderate"], ["Technical Quality", "Conditioning"], ["Baseline Player", "All-Court Player", "Singles Player"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.2),
-            Exercise("Serve targets", "Technical", "30 first serves + 20 second serves", "Placement and confidence.", ["Racket", "Ball", "Court"], ["Moderate"], ["Technical Quality"], ["Serve-and-Volley Player", "Singles Player", "Doubles Specialist"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.0),
-            Exercise("Approach + volley sequence", "Technical", "12 reps each side", "Net transition.", ["Racket", "Ball", "Court"], ["Moderate"], ["Technical Quality", "Match Rhythm"], ["Serve-and-Volley Player", "All-Court Player", "Doubles Specialist"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 0.9),
-            Exercise("Backhand pattern under pressure", "Technical", "5 rounds x 6 balls", "Stabilize the weaker wing under speed and direction change.", ["Racket", "Ball", "Court"], ["Moderate", "High"], ["Technical Quality"], ["Singles Player", "Baseline Player", "All-Court Player"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.95),
-        ],
-        "Physical": [
-            Exercise("Lateral shuffle intervals", "Physical", "6 reps x 20 seconds, 40 seconds rest", "Court movement endurance.", ["Court"], ["High"], ["Conditioning", "Movement Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.85),
-            Exercise("Medicine ball rotations", "Physical", "3 sets x 10 reps each side", "Rotational power.", ["Medicine ball"], ["Moderate"], ["Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 0.85),
-            Exercise("Reverse lunges", "Physical", "3 sets x 8 reps each leg", "Lower-body control.", ["Bodyweight", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-            Exercise("Reactive first-step drill", "Physical", "8 reps x 5-8 seconds", "Explosive response to directional cues.", ["Court", "Cones"], ["High"], ["Speed"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "Competition Block"], 0.8),
-        ],
-        "Tactical": [
-            Exercise("Pattern play", "Tactical", "5 rounds x 3 points per pattern", "Build point construction.", ["Racket", "Ball", "Court"], ["Moderate"], ["Match Rhythm", "Technical Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.0),
-            Exercise("Scoreboard pressure game", "Tactical", "4 rounds starting at 30-30", "Decision-making under pressure.", ["Racket", "Ball", "Court"], ["High"], ["Match Rhythm"], ["All"], ["Advanced", "Elite"], ["Competition Block"], 0.9),
-        ],
-        "Recovery": [
-            Exercise("Forearm/hip mobility", "Recovery", "6 minutes", "Reduce stiffness.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.75),
-        ],
-    },
-
-    "Volleyball": {
-        "Warm-Up": [
-            Exercise("Dynamic court warm-up", "Warm-Up", "7 minutes", "General readiness.", ["Court"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Arm swing activation", "Warm-Up", "2 sets x 12 reps", "Shoulder prep.", ["Bands", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
-            Exercise("Landing mechanics primer", "Warm-Up", "2 sets x 5 jumps with stick landing", "Jump-readiness and safe deceleration.", ["Court"], ["Low", "Moderate"], ["Power", "Movement Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Serve receive reps", "Technical", "20 quality passes", "Platform control.", ["Ball", "Court"], ["Moderate"], ["Technical Quality"], ["Libero", "Defensive Specialist", "Outside Hitter"], ["All"], ["All"], 0.95),
-            Exercise("Setting accuracy", "Technical", "4 rounds x 2 minutes", "Tempo and placement.", ["Ball", "Court"], ["Moderate"], ["Technical Quality"], ["Setter"], ["All"], ["All"], 0.9),
-            Exercise("Approach jump spikes", "Technical", "5 sets x 4 reps", "Timing and hitting mechanics.", ["Ball", "Court"], ["Moderate", "High"], ["Technical Quality", "Power"], ["Outside Hitter", "Opposite", "Middle Blocker"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.0),
-            Exercise("Block footwork sequence", "Technical", "5 rounds x 4 reps", "Improve shuffle and cross-over to block.", ["Court"], ["Moderate"], ["Technical Quality", "Movement Quality"], ["Middle Blocker", "Opposite", "Outside Hitter"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-        ],
-        "Physical": [
-            Exercise("Block jumps", "Physical", "4 sets x 5 reps", "Explosive jumping.", ["Court"], ["High"], ["Power"], ["Middle Blocker", "Opposite", "Outside Hitter"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.85),
-            Exercise("Band external rotations", "Physical", "3 sets x 12 reps", "Shoulder integrity.", ["Bands"], ["Low", "Moderate"], ["Injury Prevention"], ["All"], ["All"], ["All"], 0.75),
-            Exercise("Tempo squats", "Physical", "3 sets x 8 reps", "Leg strength.", ["Bodyweight", "Dumbbells", "Barbell"], ["Moderate"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 0.95),
-            Exercise("Lateral shuffle-to-drop step", "Physical", "6 reps each side", "Fast defensive movement patterns.", ["Court"], ["High"], ["Speed"], ["Libero", "Defensive Specialist", "Setter"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.8),
-        ],
-        "Tactical": [
-            Exercise("6v6 situational play", "Tactical", "4 rounds x 5 minutes", "Rotation and decision-making.", ["Ball", "Court"], ["High"], ["Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.2),
-        ],
-        "Recovery": [
-            Exercise("Shoulder and calf stretch", "Recovery", "6 minutes", "Restore range of motion.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
-        ],
-    },
-
-    "Water Polo": {
-        "Warm-Up": [
-            Exercise("Swim + eggbeater prep", "Warm-Up", "200m easy swim + 3 x 30 seconds eggbeater", "Pool readiness.", ["Pool"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.1),
-            Exercise("Shoulder mobility", "Warm-Up", "2 sets x 10 reps", "Throwing prep.", ["Bodyweight", "Bands"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
-            Exercise("Reaction swim starts", "Warm-Up", "6 reps x 6-8m", "Prime fast first movement in the water.", ["Pool"], ["Moderate"], ["Speed"], ["Goalkeeper", "Driver", "Wing", "Point"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Passing on the move", "Technical", "4 rounds x 3 minutes", "Ball speed and accuracy.", ["Pool", "Ball"], ["Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Shooting corners", "Technical", "20 shots total", "Finishing.", ["Pool", "Ball", "Goal"], ["Moderate"], ["Technical Quality"], ["Wing", "Point", "Driver", "Center Forward"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.95),
-            Exercise("Center battle positioning", "Technical", "6 reps x 20 seconds", "Body position under contact.", ["Pool", "Ball"], ["High"], ["Strength", "Technical Quality"], ["Center Forward", "Center Back"], ["Intermediate", "Advanced", "Elite"], ["In-Season"], 0.9),
-            Exercise("Goalkeeper angle set drill", "Technical", "5 rounds x 5 reps", "Line, angle and explosive reaction.", ["Pool", "Ball", "Goal"], ["Moderate"], ["Technical Quality", "Speed"], ["Goalkeeper"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.9),
-        ],
-        "Physical": [
-            Exercise("Sprint swims", "Physical", "8 reps x 15m, 30 seconds rest", "Explosive swimming.", ["Pool"], ["High"], ["Speed"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.9),
-            Exercise("Eggbeater hold", "Physical", "4 reps x 40 seconds", "Leg endurance.", ["Pool"], ["High"], ["Conditioning", "Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-            Exercise("Pull-ups or band pulls", "Physical", "3 sets x 6-10 reps", "Upper-body strength.", ["Pull-up bar", "Bands"], ["Moderate"], ["Strength"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-            Exercise("Medicine ball overhead throw", "Physical", "3 sets x 6 reps", "Throwing power transfer.", ["Medicine ball"], ["Moderate", "High"], ["Power"], ["Point", "Wing", "Driver"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season"], 0.8),
-        ],
-        "Tactical": [
-            Exercise("6-on-5 execution", "Tactical", "5 rounds x 90 seconds", "Special situation organization.", ["Pool", "Ball"], ["Moderate", "High"], ["Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.0),
-        ],
-        "Recovery": [
-            Exercise("Easy backstroke + stretch", "Recovery", "5 minutes swim + 5 minutes stretch", "Recovery.", ["Pool"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.9),
-        ],
-    },
-
-    "Baseball": {
-        "Warm-Up": [
-            Exercise("Throwing prep warm-up", "Warm-Up", "8 minutes", "Arm and hip readiness.", ["Ball", "Open space"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Scap activation series", "Warm-Up", "2 sets x 10 reps", "Shoulder blade control before throwing or hitting.", ["Bands"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
-        ],
-        "Technical": [
-            Exercise("Fielding fundamentals", "Technical", "4 rounds x 8 reps", "Clean glove work.", ["Ball", "Field"], ["Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Bat speed tee work", "Technical", "5 rounds x 6 swings", "Quality contact.", ["Bat", "Ball", "Field"], ["Moderate"], ["Technical Quality", "Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.95),
-            Exercise("Long toss progression", "Technical", "10 minutes", "Throwing capacity.", ["Ball", "Field"], ["Moderate"], ["Technical Quality", "Strength"], ["Pitcher", "Catcher", "Outfielder"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
-            Exercise("Pitch command sequence", "Technical", "4 rounds x 8 pitches", "Zone feel and repeatable mechanics.", ["Ball", "Field"], ["Moderate"], ["Technical Quality"], ["Pitcher"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.0),
-        ],
-        "Physical": [
-            Exercise("Rotational med-ball throws", "Physical", "3 sets x 8 reps each side", "Power transfer.", ["Medicine ball"], ["Moderate", "High"], ["Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season"], 0.85),
-            Exercise("Broad jumps", "Physical", "4 sets x 4 reps", "Lower-body power.", ["Bodyweight"], ["High"], ["Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season"], 0.8),
-            Exercise("Rear-foot elevated split squat", "Physical", "3 sets x 8 reps each leg", "Single-leg strength.", ["Bench", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.9),
-            Exercise("Farmer carry", "Physical", "4 reps x 20-30m", "Grip, trunk and postural strength.", ["Dumbbells", "Kettlebells"], ["Moderate"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-        "Tactical": [
-            Exercise("Situational defense", "Tactical", "4 rounds x 3 minutes", "Game IQ.", ["Field", "Ball"], ["Moderate"], ["Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.0),
-        ],
-        "Recovery": [
-            Exercise("Posterior shoulder care", "Recovery", "6 minutes", "Arm recovery.", ["Bands", "Bodyweight"], ["Low"], ["Movement Quality", "Injury Prevention"], ["All"], ["All"], ["All"], 0.8),
-        ],
-    },
-
-    "Running": {
-        "Warm-Up": [
-            Exercise("Run warm-up", "Warm-Up", "8 minutes easy + drills", "Prepare gait and tissue stiffness.", ["Open space"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Ankling and A-skip series", "Warm-Up", "2 rounds x 20m each", "Improve ground contact quality.", ["Track", "Road", "Open space"], ["Low", "Moderate"], ["Speed", "Movement Quality"], ["Sprinter", "Middle Distance"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Strides", "Technical", "6 reps x 80m", "Running form at speed.", ["Track", "Road", "Open space"], ["Moderate"], ["Speed"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-            Exercise("Hill mechanics", "Technical", "6 reps x 12 seconds", "Drive and posture.", ["Hill", "Open space"], ["High"], ["Speed", "Power"], ["Sprinter", "Middle Distance", "Trail Runner"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "Off-Season"], 0.8),
-            Exercise("Cadence control block", "Technical", "4 rounds x 2 minutes", "Economy and rhythm awareness.", ["Track", "Road"], ["Moderate"], ["Technical Quality", "Conditioning"], ["Long Distance", "Middle Distance"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 0.9),
-        ],
-        "Physical": [
-            Exercise("Main aerobic set", "Physical", "20-45 minutes depending on level", "Aerobic development.", ["Track", "Road", "Trail"], ["Moderate", "High"], ["Conditioning"], ["Middle Distance", "Long Distance", "Trail Runner"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 2.2),
-            Exercise("Calf raises", "Physical", "3 sets x 15 reps", "Lower-leg resilience.", ["Bodyweight", "Dumbbells"], ["Moderate"], ["Strength", "Injury Prevention"], ["All"], ["All"], ["All"], 0.7),
-            Exercise("Dead bugs", "Physical", "3 sets x 10 reps each side", "Core stability.", ["Bodyweight"], ["Low", "Moderate"], ["Strength"], ["All"], ["All"], ["All"], 0.7),
-            Exercise("Sprint build-up reps", "Physical", "6 reps x 60m progressive", "Speed exposure without full maxing out.", ["Track", "Open space"], ["High"], ["Speed"], ["Sprinter", "Middle Distance"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "Competition Block"], 0.9),
-        ],
-        "Tactical": [
-            Exercise("Pacing rehearsal", "Tactical", "3 rounds x 5 minutes", "Race awareness.", ["Track", "Road"], ["Moderate"], ["Match Rhythm"], ["Middle Distance", "Long Distance", "Trail Runner"], ["Intermediate", "Advanced", "Elite"], ["In-Season", "Competition Block"], 1.1),
-        ],
-        "Recovery": [
-            Exercise("Walk + mobility", "Recovery", "10 minutes", "Bring heart rate down.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.9),
-        ],
-    },
-
-    "Gym": {
-        "Warm-Up": [
-            Exercise("Cardio primer + mobility", "Warm-Up", "6 minutes cardio + 6 reps per mobility drill", "General prep.", ["Cardio machine", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Bracing and hinge prep", "Warm-Up", "2 rounds x 5 reps each", "Prime safer lifting mechanics.", ["Bodyweight", "Bands"], ["Low"], ["Movement Quality"], ["Athletic Performance", "Hypertrophy", "General Fitness"], ["All"], ["All"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Movement pattern rehearsal", "Technical", "2 light sets per lift", "Safer lifting.", ["Barbell", "Dumbbells", "Machines"], ["Low"], ["Technical Quality"], ["All"], ["All"], ["All"], 0.7),
-            Exercise("Tempo skill set", "Technical", "2 sets x 5 reps at controlled tempo", "Improve position awareness.", ["Barbell", "Dumbbells"], ["Low", "Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 0.75),
-        ],
-        "Physical": [
-            Exercise("Squat or leg press", "Physical", "4 sets x 6-10 reps", "Lower-body strength.", ["Barbell", "Machine"], ["Moderate", "High"], ["Strength"], ["Hypertrophy", "Athletic Performance", "General Fitness"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 1.2),
-            Exercise("Bench or push variation", "Physical", "4 sets x 6-10 reps", "Upper-body pushing.", ["Barbell", "Dumbbells", "Machine"], ["Moderate", "High"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
-            Exercise("Row or pull variation", "Physical", "4 sets x 8-12 reps", "Upper-body pulling.", ["Barbell", "Dumbbells", "Machine"], ["Moderate", "High"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
-            Exercise("Conditioning finisher", "Physical", "8-12 minutes", "Work capacity.", ["Cardio machine", "Bodyweight"], ["High"], ["Conditioning"], ["Fat Loss", "General Fitness", "Athletic Performance"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season", "In-Season"], 1.0),
-            Exercise("Trap bar jump or med-ball throw", "Physical", "4 sets x 3-5 reps", "Fast force development.", ["Trap bar", "Medicine ball"], ["High"], ["Power"], ["Athletic Performance"], ["Advanced", "Elite"], ["Off-Season", "Pre-Season"], 0.8),
-        ],
-        "Tactical": [
-            Exercise("Tempo control", "Tactical", "Apply 2-0-2 tempo on first 2 exercises", "Technique discipline.", ["Barbell", "Dumbbells", "Machine"], ["Low"], ["Technical Quality"], ["All"], ["All"], ["All"], 0.6),
-        ],
-        "Recovery": [
-            Exercise("Cooldown stretch", "Recovery", "6 minutes", "Recovery.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
-        ],
-    },
-
-    "Weightlifting": {
-        "Warm-Up": [
-            Exercise("Barbell prep sequence", "Warm-Up", "8 minutes", "Mobility and groove.", ["Barbell", "Open space"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Overhead position primer", "Warm-Up", "2 sets x 5 reps", "Open thoracic and overhead mechanics.", ["PVC", "Barbell"], ["Low"], ["Movement Quality"], ["Snatch Focus", "General Weightlifting"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.8),
-        ],
-        "Technical": [
-            Exercise("Snatch technique", "Technical", "6 sets x 2 reps", "Bar path and speed.", ["Barbell"], ["Moderate", "High"], ["Technical Quality", "Power"], ["Snatch Focus", "General Weightlifting"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.25),
-            Exercise("Clean and jerk technique", "Technical", "5 sets x 2 reps", "Coordination.", ["Barbell"], ["Moderate", "High"], ["Technical Quality", "Power"], ["Clean and Jerk Focus", "General Weightlifting"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.2),
-            Exercise("Segment lift practice", "Technical", "4 sets x 2 reps", "Strengthen precision in the weakest phase.", ["Barbell"], ["Moderate"], ["Technical Quality"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.0),
-        ],
-        "Physical": [
-            Exercise("Front squat", "Physical", "4 sets x 3-5 reps", "Strength for receiving positions.", ["Barbell"], ["High"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.0),
-            Exercise("Pulls", "Physical", "4 sets x 3 reps", "Explosive extension.", ["Barbell"], ["High"], ["Power"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.95),
-            Exercise("Core holds", "Physical", "3 sets x 30-45 seconds", "Trunk stiffness.", ["Bodyweight"], ["Moderate"], ["Strength"], ["All"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.75),
-            Exercise("Push press", "Physical", "4 sets x 3 reps", "Overhead power transfer.", ["Barbell"], ["High"], ["Power"], ["Clean and Jerk Focus", "General Weightlifting"], ["Intermediate", "Advanced", "Elite"], ["Off-Season", "Pre-Season"], 0.85),
-        ],
-        "Tactical": [
-            Exercise("Attempt selection practice", "Tactical", "3 mock waves", "Meet strategy.", ["Barbell"], ["Moderate"], ["Match Rhythm"], ["All"], ["Intermediate", "Advanced", "Elite"], ["Competition Block"], 0.7),
-        ],
-        "Recovery": [
-            Exercise("Thoracic/ankle mobility", "Recovery", "8 minutes", "Position restoration.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
-        ],
-    },
-
-    "Rowing": {
-        "Warm-Up": [
-            Exercise("Erg + mobility prep", "Warm-Up", "5 minutes erg + 5 minutes mobility", "Stroke prep.", ["Rowing erg", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
-            Exercise("Stroke pick drill", "Warm-Up", "2 rounds x 2 minutes", "Reconnect rhythm from arms-only to full stroke.", ["Boat", "Erg"], ["Low"], ["Technical Quality"], ["Sweep Rower", "Sculler", "Indoor Rower"], ["Beginner", "Intermediate", "Advanced", "Elite"], ["All"], 0.85),
-        ],
-        "Technical": [
-            Exercise("Pause drill", "Technical", "4 rounds x 3 minutes", "Sequencing.", ["Boat", "Erg"], ["Moderate"], ["Technical Quality"], ["Sweep Rower", "Sculler", "Indoor Rower"], ["All"], ["All"], 1.0),
-            Exercise("Rate ladder", "Technical", "3 rounds x 4 minutes", "Control at different rates.", ["Boat", "Erg"], ["Moderate", "High"], ["Technical Quality", "Conditioning"], ["Sweep Rower", "Sculler", "Indoor Rower"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
-            Exercise("Catch timing set", "Technical", "5 rounds x 90 seconds", "Sharper placement and front-end timing.", ["Boat", "Erg"], ["Moderate"], ["Technical Quality"], ["Sweep Rower", "Sculler"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.9),
-        ],
-        "Physical": [
-            Exercise("Main erg piece", "Physical", "3 x 8 minutes, 2 minutes rest", "Aerobic power.", ["Rowing erg"], ["High"], ["Conditioning"], ["Indoor Rower", "Sweep Rower", "Sculler"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 1.6),
-            Exercise("Romanian deadlift", "Physical", "3 sets x 8 reps", "Posterior chain.", ["Barbell", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 0.9),
-            Exercise("Plank", "Physical", "3 reps x 40 seconds", "Core endurance.", ["Bodyweight"], ["Moderate"], ["Strength"], ["All"], ["All"], ["All"], 0.7),
-            Exercise("Leg drive intervals", "Physical", "5 reps x 45 seconds", "Specific power endurance for the drive phase.", ["Erg"], ["High"], ["Power", "Conditioning"], ["Indoor Rower", "Sweep Rower", "Sculler"], ["Intermediate", "Advanced", "Elite"], ["Pre-Season", "In-Season"], 0.85),
-        ],
-        "Tactical": [
-            Exercise("Race rhythm simulation", "Tactical", "2 rounds x 6 minutes", "Pacing.", ["Boat", "Erg"], ["Moderate", "High"], ["Match Rhythm"], ["Sweep Rower", "Sculler", "Indoor Rower"], ["Intermediate", "Advanced", "Elite"], ["Competition Block"], 1.0),
-        ],
-        "Recovery": [
-            Exercise("Easy paddle or walk", "Recovery", "8 minutes", "Recovery.", ["Boat", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
-        ],
-    },
-}
-
-
-SPORT_DURATION_STYLE: Dict[str, Dict[str, int]] = {
-    "Soccer": {"short": 6, "standard": 7, "long": 8},
-    "Basketball": {"short": 6, "standard": 7, "long": 8},
-    "Tennis": {"short": 5, "standard": 6, "long": 7},
-    "Volleyball": {"short": 6, "standard": 7, "long": 8},
-    "Water Polo": {"short": 6, "standard": 7, "long": 8},
-    "Baseball": {"short": 5, "standard": 6, "long": 7},
-    "Running": {"short": 4, "standard": 5, "long": 6},
-    "Gym": {"short": 5, "standard": 6, "long": 7},
-    "Weightlifting": {"short": 5, "standard": 6, "long": 7},
-    "Rowing": {"short": 5, "standard": 6, "long": 7},
-}
-
-SPORT_BLUEPRINTS: Dict[str, Dict[str, Dict[str, int]]] = {
-    "Soccer": {
-        "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    },
-    "Tennis": {
-        "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    },
-    "Running": {
-        "Balanced Session": {"Warm-Up": 1, "Technical": 1, "Physical": 2, "Tactical": 1, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 1, "Technical": 2, "Physical": 1, "Tactical": 0, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    },
-    "Gym": {
-        "Balanced Session": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 1, "Technical": 0, "Physical": 4, "Tactical": 0, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 2, "Tactical": 0, "Recovery": 1},
-    },
-    "Weightlifting": {
-        "Balanced Session": {"Warm-Up": 1, "Technical": 2, "Physical": 2, "Tactical": 0, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 1, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 1, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    },
-    "Rowing": {
-        "Balanced Session": {"Warm-Up": 1, "Technical": 2, "Physical": 2, "Tactical": 0, "Recovery": 1},
-        "Technical Priority": {"Warm-Up": 1, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
-        "Physical Priority": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
-        "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    },
-}
-
-DEFAULT_BLUEPRINTS = {
-    "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
-    "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
-    "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
-    "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
+INTENSITY_NOTES = {
+    "Controlled": "Keep quality-first pacing. Leave reserve in the tank and do not chase fatigue.",
+    "Standard": "Normal productive training intensity. Strong quality, but not an all-out day.",
+    "High": "High-output day. Prioritize sharp execution, full recoveries on speed work, and stop if mechanics fade.",
+    "Peak": "Very high intent. Use only when readiness is truly high and the athlete is not carrying pain or excessive fatigue.",
 }
 
 CATEGORY_BASE_SHARES = {
@@ -553,13 +105,6 @@ READINESS_MULTIPLIERS = {
     "High": 1.08,
 }
 
-INTENSITY_NOTES = {
-    "Controlled": "Keep quality-first pacing. Leave reserve in the tank and avoid chasing fatigue.",
-    "Standard": "Normal productive training intensity. Strong quality, but not an all-out day.",
-    "High": "High-output day. Prioritize sharp execution, full recoveries on speed work, and stop if mechanics fade.",
-    "Peak": "Very high intent. Use only when readiness is truly high and the athlete is not carrying pain or excessive fatigue.",
-}
-
 GOAL_PRIORITIES = {
     "Improve performance": ["Technical", "Physical", "Tactical"],
     "Build fitness": ["Physical", "Technical", "Recovery"],
@@ -569,41 +114,189 @@ GOAL_PRIORITIES = {
     "Competition preparation": ["Technical", "Tactical", "Physical"],
 }
 
+EQUIPMENT_LEVEL_DETAILS = {
+    "Minimal": {"label": "Minimal", "description": "Very limited setup.", "includes": ["Bodyweight", "Open space", "Floor or grass area"]},
+    "Basic": {"label": "Basic", "description": "Simple field or court access plus a few tools.", "includes": ["Balls", "Cones", "Bands"]},
+    "Medium": {"label": "Medium", "description": "Good general setup for most athletes.", "includes": ["Cones", "Bands", "Dumbbells", "Medicine ball"]},
+    "Competitive": {"label": "Competitive", "description": "Strong club-level training environment.", "includes": ["Full sport setup", "Gym access", "Strength equipment"]},
+    "Elite": {"label": "Elite", "description": "High-performance environment.", "includes": ["Complete facility", "Full gym", "Recovery resources"]},
+}
+
 
 # -----------------------------------------------------------------------------
-# GENERATOR HELPERS
+# LIBRARY (kept structured, but prescriptions for gym are displayed as ranges)
 # -----------------------------------------------------------------------------
+SPORT_LIBRARY: Dict[str, Dict[str, List[Exercise]]] = {
+    "Gym": {
+        "Warm-Up": [
+            Exercise("Cardio primer + mobility", "Warm-Up", "2-3 blocks of easy cardio and mobility flow", "General prep.", ["Cardio machine", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Bracing and hinge prep", "Warm-Up", "2-3 guided activation blocks", "Prime safer lifting mechanics.", ["Bodyweight", "Bands"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
+        ],
+        "Technical": [
+            Exercise("Movement pattern rehearsal", "Technical", "2-3 lighter setup blocks before main lifts", "Safer lifting.", ["Barbell", "Dumbbells", "Machines"], ["Low"], ["Technical Quality"], ["All"], ["All"], ["All"], 0.7),
+            Exercise("Tempo skill set", "Technical", "2-3 controlled technique blocks", "Improve position awareness.", ["Barbell", "Dumbbells"], ["Low", "Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 0.75),
+        ],
+        "Physical": [
+            Exercise("Squat or leg press", "Physical", "3-4 working blocks in the hypertrophy or strength range", "Lower-body strength.", ["Barbell", "Machine"], ["Moderate", "High"], ["Strength"], ["Hypertrophy", "Athletic Performance", "General Fitness"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.2),
+            Exercise("Bench or push variation", "Physical", "3-4 working blocks with quality pushing volume", "Upper-body pushing.", ["Barbell", "Dumbbells", "Machine"], ["Moderate", "High"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
+            Exercise("Row or pull variation", "Physical", "3-4 working blocks with strong pulling quality", "Upper-body pulling.", ["Barbell", "Dumbbells", "Machine"], ["Moderate", "High"], ["Strength"], ["All"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.05),
+            Exercise("Conditioning finisher", "Physical", "2-4 conditioning rounds", "Work capacity.", ["Cardio machine", "Bodyweight"], ["High"], ["Conditioning"], ["Fat Loss", "General Fitness", "Athletic Performance"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.0),
+            Exercise("Trap bar jump or med-ball throw", "Physical", "3-4 explosive blocks", "Fast force development.", ["Trap bar", "Medicine ball"], ["High"], ["Power"], ["Athletic Performance"], ["Advanced", "Elite"], ["All"], 0.8),
+        ],
+        "Recovery": [
+            Exercise("Cooldown stretch", "Recovery", "1-2 cooldown blocks", "Recovery.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
+        ],
+    },
+    "Soccer": {
+        "Warm-Up": [
+            Exercise("Jog + mobility flow", "Warm-Up", "6 minutes easy jog + mobility flow", "Raise body temperature and open hips/ankles.", ["Bodyweight", "Open space"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.1),
+            Exercise("Dynamic activation", "Warm-Up", "2-3 movement rounds", "Prepare sprint mechanics.", ["Open space"], ["Low", "Moderate"], ["Speed"], ["All"], ["All"], ["All"], 0.9),
+        ],
+        "Technical": [
+            Exercise("First-touch passing circuit", "Technical", "3-4 passing rounds", "Improve control and passing rhythm.", ["Ball", "Open space"], ["Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Dribble slalom + exit sprint", "Technical", "5-6 dribble efforts", "Tight control under speed.", ["Ball", "Cones"], ["Moderate", "High"], ["Speed", "Technical Quality"], ["Winger", "Striker", "Attacking Midfielder", "Full Back"], ["All"], ["All"], 0.85),
+        ],
+        "Physical": [
+            Exercise("Acceleration sprints", "Physical", "6-8 acceleration efforts", "Explosive first steps.", ["Open space"], ["High"], ["Speed"], ["All"], ["All"], ["All"], 0.85),
+            Exercise("Split squats", "Physical", "3-4 strength blocks each side", "Single-leg strength.", ["Bodyweight", "Dumbbells"], ["Moderate"], ["Strength"], ["All"], ["All"], ["All"], 0.9),
+        ],
+        "Tactical": [
+            Exercise("Small-sided game", "Tactical", "3-4 game rounds", "Decision-making under pressure.", ["Ball", "Field"], ["High"], ["Match Rhythm", "Conditioning"], ["All"], ["All"], ["All"], 1.3),
+        ],
+        "Recovery": [
+            Exercise("Breathing walk + stretch", "Recovery", "1-2 cooldown blocks", "Downregulate and improve recovery.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
+        ],
+    },
+    "Tennis": {
+        "Warm-Up": [
+            Exercise("Mini tennis + mobility", "Warm-Up", "2-3 prep blocks", "Feel and footwork.", ["Racket", "Ball", "Court"], ["Low"], ["Technical Quality", "Movement Quality"], ["All"], ["All"], ["All"], 1.1),
+            Exercise("Serve shoulder prep", "Warm-Up", "2 shoulder activation blocks", "Prepare the shoulder complex.", ["Bands", "Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
+        ],
+        "Technical": [
+            Exercise("Crosscourt consistency", "Technical", "3-4 consistency rounds", "Rally tolerance.", ["Racket", "Ball", "Court"], ["Moderate"], ["Technical Quality", "Conditioning"], ["All"], ["All"], ["All"], 1.2),
+            Exercise("Serve targets", "Technical", "3-4 focused serve blocks", "Placement and confidence.", ["Racket", "Ball", "Court"], ["Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 1.0),
+        ],
+        "Physical": [
+            Exercise("Lateral shuffle intervals", "Physical", "5-6 lateral movement rounds", "Court movement endurance.", ["Court"], ["High"], ["Conditioning", "Movement Quality"], ["All"], ["All"], ["All"], 0.85),
+            Exercise("Medicine ball rotations", "Physical", "3-4 rotational power blocks", "Rotational power.", ["Medicine ball"], ["Moderate"], ["Power"], ["All"], ["All"], ["All"], 0.85),
+        ],
+        "Tactical": [
+            Exercise("Pattern play", "Tactical", "3-5 pattern rounds", "Build point construction.", ["Racket", "Ball", "Court"], ["Moderate"], ["Match Rhythm", "Technical Quality"], ["All"], ["All"], ["All"], 1.0),
+        ],
+        "Recovery": [
+            Exercise("Forearm/hip mobility", "Recovery", "1-2 mobility cooldown blocks", "Reduce stiffness.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
+        ],
+    },
+}
+
+DEFAULT_GENERAL_LIBRARY = {
+    "Warm-Up": [
+        Exercise("General dynamic warm-up", "Warm-Up", "2-3 progressive warm-up blocks", "Raise temperature and mobility.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
+    ],
+    "Technical": [
+        Exercise("Sport-specific skill block", "Technical", "3-4 technical rounds", "Rehearse core sport actions.", ["Sport equipment if available"], ["Moderate"], ["Technical Quality"], ["All"], ["All"], ["All"], 1.0),
+    ],
+    "Physical": [
+        Exercise("General athletic block", "Physical", "3-4 physical working blocks", "Build sport-supporting qualities.", ["Bodyweight", "Bands", "Basic weights if available"], ["Moderate"], ["Strength", "Conditioning"], ["All"], ["All"], ["All"], 1.0),
+    ],
+    "Tactical": [
+        Exercise("Decision-making / rhythm block", "Tactical", "2-3 structured rounds", "Connect skill to sport context.", ["Open space", "Sport equipment if available"], ["Moderate"], ["Match Rhythm"], ["All"], ["All"], ["All"], 1.0),
+    ],
+    "Recovery": [
+        Exercise("Cooldown and recovery", "Recovery", "1-2 recovery blocks", "Bring effort down and restore movement quality.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.8),
+    ],
+}
+
+SPORT_DURATION_STYLE = {
+    "Soccer": {"short": 6, "standard": 7, "long": 8},
+    "Tennis": {"short": 5, "standard": 6, "long": 7},
+    "Gym": {"short": 5, "standard": 6, "long": 7},
+    "default": {"short": 5, "standard": 6, "long": 7},
+}
+
+SPORT_BLUEPRINTS = {
+    "Soccer": {
+        "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
+        "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
+        "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
+        "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
+    },
+    "Tennis": {
+        "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
+        "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
+        "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
+        "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
+    },
+    "Gym": {
+        "Balanced Session": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
+        "Technical Priority": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
+        "Physical Priority": {"Warm-Up": 1, "Technical": 0, "Physical": 4, "Tactical": 0, "Recovery": 1},
+        "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 2, "Tactical": 0, "Recovery": 1},
+    },
+}
+
+DEFAULT_BLUEPRINTS = {
+    "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
+    "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
+    "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
+    "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
+}
 
 
-def normalize_profile_sport_name(text: str) -> str:
-    return " ".join(str(text).strip().lower().split())
-
-
-def get_home_profile_defaults() -> Dict[str, object]:
-    return {
-        "sport": st.session_state.get("sport", ""),
-        "goal": st.session_state.get("goal", ""),
-        "level": st.session_state.get("level", ""),
-        "weekly_target": st.session_state.get("weekly_target", None),
-        "home_notes": st.session_state.get("home_notes", ""),
+# -----------------------------------------------------------------------------
+# CHAT FLOW
+# -----------------------------------------------------------------------------
+def init_generator_state() -> None:
+    defaults = {
+        "generator_chat_messages": [],
+        "training_chat_started": False,
+        "training_question_index": 0,
+        "training_chat_complete": False,
+        "training_profile": {},
+        "latest_training_payload": None,
+        "latest_training_summary": None,
     }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-def match_supported_sport(home_sport: str) -> Optional[str]:
-    normalized = normalize_profile_sport_name(home_sport)
-    if not normalized:
-        return None
-    for sport_name in SPORT_POSITIONS.keys():
-        if normalize_profile_sport_name(sport_name) == normalized:
-            return sport_name
+def normalize_text(text: str) -> str:
+    return " ".join(str(text).strip().split())
+
+
+def normalize_lower(text: str) -> str:
+    return normalize_text(text).lower()
+
+
+def detect_sport_type(sport_text: str) -> str:
+    sport = normalize_lower(sport_text)
+    if not sport:
+        return ""
+    if sport in KNOWN_TEAM_SPORTS:
+        return "Team Sport"
+    if sport in KNOWN_INDIVIDUAL_SPORTS:
+        return "Individual Sport"
+    return ""
+
+
+def match_supported_sport(sport_text: str) -> Optional[str]:
+    normalized = normalize_lower(sport_text)
     aliases = {
         "football": "Soccer",
         "soccer": "Soccer",
-        "waterpolo": "Water Polo",
         "water polo": "Water Polo",
+        "waterpolo": "Water Polo",
         "gym": "Gym",
+        "fitness": "Gym",
     }
-    return aliases.get(normalized)
+    if normalized in aliases:
+        return aliases[normalized]
+    for sport_name in SPORT_POSITIONS:
+        if normalize_lower(sport_name) == normalized:
+            return sport_name
+    return None
+
 
 def get_frequency_prompt(goal: str, level: str) -> str:
     if goal == "Learn how to play" or level == "Beginner":
@@ -611,14 +304,191 @@ def get_frequency_prompt(goal: str, level: str) -> str:
     return "How many times do you train this sport per week?"
 
 
-def get_equipment_guidance(level: str) -> Dict[str, List[str] | str]:
-    return EQUIPMENT_LEVEL_DETAILS.get(level, EQUIPMENT_LEVEL_DETAILS["Basic"])
+def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
+    sport = profile.get("sport", "")
+    sport_type = profile.get("sport_type", "") or detect_sport_type(sport)
+    supported_sport = match_supported_sport(sport)
+    positions = SPORT_POSITIONS.get(supported_sport, ["General Profile"])
+
+    flow = [
+        {"key": "sport", "prompt": "What sport do you play?", "type": "text"},
+        {
+            "key": "sport_type",
+            "prompt": "Is this an individual sport or a team sport? You can answer: Individual Sport or Team Sport.",
+            "type": "select",
+            "options": ["Individual Sport", "Team Sport"],
+            "skip_if_detected": True,
+        },
+    ]
+
+    if sport_type == "Team Sport":
+        flow.extend([
+            {"key": "team_name", "prompt": "What team do you play for?", "type": "text"},
+            {"key": "athlete_name", "prompt": "Athlete name?", "type": "text"},
+        ])
+    else:
+        flow.append({"key": "athlete_name", "prompt": "Your name?", "type": "text"})
+
+    flow.extend([
+        {"key": "goal", "prompt": "What is your main goal?", "type": "select", "options": GOALS},
+        {"key": "level", "prompt": "What is your current level?", "type": "select", "options": LEVELS},
+        {"key": "weekly_target", "prompt": get_frequency_prompt(profile.get("goal", ""), profile.get("level", "")), "type": "int", "min": 1, "max": 7},
+        {"key": "position", "prompt": "What is your position or role in this sport?", "type": "select_or_text", "options": positions},
+        {"key": "session_type", "prompt": "What kind of session do you want today?", "type": "select", "options": SESSION_TYPES},
+        {"key": "duration", "prompt": "How many minutes should this session last?", "type": "int", "min": 30, "max": 180},
+        {"key": "equipment_level", "prompt": "What is your level of equipment available?", "type": "select", "options": EQUIPMENT_LEVELS},
+        {"key": "season_phase", "prompt": "What season phase are you in?", "type": "select", "options": SEASON_PHASES},
+        {"key": "primary_focus", "prompt": "What is the main focus for today?", "type": "select", "options": PRIMARY_FOCUS_OPTIONS},
+        {"key": "readiness", "prompt": "How is your readiness today?", "type": "select", "options": READINESS_OPTIONS},
+        {"key": "intensity_mode", "prompt": "What intensity mode do you want today?", "type": "select", "options": INTENSITY_MODES},
+        {"key": "pain_flag", "prompt": "Is there pain or discomfort today? Answer Yes or No.", "type": "bool"},
+        {"key": "competition_soon", "prompt": "Do you have a competition or match in the next 3 days? Answer Yes or No.", "type": "bool"},
+        {"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"},
+        {"key": "notes", "prompt": "Any extra notes? If not, answer: none.", "type": "text"},
+    ])
+
+    if profile.get("level") in ["Advanced", "Elite"]:
+        insert_idx = 6 if sport_type == "Team Sport" else 5
+        flow.insert(insert_idx, {"key": "is_professional", "prompt": "Are you professional in this sport? Answer Yes or No.", "type": "bool"})
+
+    cleaned_flow = []
+    for q in flow:
+        if q.get("key") == "sport_type" and q.get("skip_if_detected") and detect_sport_type(profile.get("sport", "")):
+            continue
+        cleaned_flow.append(q)
+    return cleaned_flow
 
 
-def normalize_equipment_level(level: str) -> str:
-    return level.strip().title()
+def append_bot_message(text: str) -> None:
+    st.session_state.generator_chat_messages.append({"role": "assistant", "content": text})
 
 
+def append_user_message(text: str) -> None:
+    st.session_state.generator_chat_messages.append({"role": "user", "content": text})
+
+
+def reset_training_chat() -> None:
+    st.session_state.generator_chat_messages = []
+    st.session_state.training_chat_started = False
+    st.session_state.training_question_index = 0
+    st.session_state.training_chat_complete = False
+    st.session_state.training_profile = {}
+    st.session_state.latest_training_payload = None
+    st.session_state.latest_training_summary = None
+
+
+def start_training_chat() -> None:
+    reset_training_chat()
+    st.session_state.training_chat_started = True
+    append_bot_message(
+        "Welcome to the unified Training Generator chat. I will ask your profile and session questions one by one, then I will build your session."
+    )
+    flow = get_question_flow(st.session_state.training_profile)
+    if flow:
+        append_bot_message(flow[0]["prompt"])
+
+
+def validate_answer(question: Dict[str, object], raw_answer: str) -> Tuple[bool, object, Optional[str]]:
+    answer = normalize_text(raw_answer)
+    q_type = question["type"]
+
+    if q_type == "text":
+        return True, answer, None
+
+    if q_type == "int":
+        if not re.fullmatch(r"\d+", answer):
+            return False, None, "Please answer with a number."
+        value = int(answer)
+        min_v = int(question.get("min", 0))
+        max_v = int(question.get("max", 999))
+        if value < min_v or value > max_v:
+            return False, None, f"Please answer with a number between {min_v} and {max_v}."
+        return True, value, None
+
+    if q_type == "bool":
+        lowered = normalize_lower(answer)
+        if lowered in {"yes", "y", "true"}:
+            return True, True, None
+        if lowered in {"no", "n", "false"}:
+            return True, False, None
+        return False, None, "Please answer Yes or No."
+
+    if q_type == "select":
+        options = question.get("options", [])
+        option_map = {normalize_lower(str(opt)): opt for opt in options}
+        lowered = normalize_lower(answer)
+        if lowered in option_map:
+            return True, option_map[lowered], None
+        return False, None, "Please answer using one of the shown options."
+
+    if q_type == "select_or_text":
+        options = question.get("options", [])
+        option_map = {normalize_lower(str(opt)): opt for opt in options}
+        lowered = normalize_lower(answer)
+        if lowered in option_map:
+            return True, option_map[lowered], None
+        return True, answer, None
+
+    return True, answer, None
+
+
+def update_profile_from_answer(key: str, value: object) -> None:
+    st.session_state.training_profile[key] = value
+
+    if key == "sport":
+        detected = detect_sport_type(str(value))
+        if detected:
+            st.session_state.training_profile["sport_type"] = detected
+    if key == "goal":
+        st.session_state.goal = value
+    if key == "level":
+        st.session_state.level = value
+    if key == "sport":
+        st.session_state.sport = value
+    if key == "athlete_name":
+        st.session_state.athlete_name = value
+    if key == "team_name":
+        st.session_state.team_name = value
+    if key == "weekly_target":
+        st.session_state.weekly_target = value
+    if key == "notes":
+        st.session_state.home_notes = "" if str(value).lower() == "none" else str(value)
+    if key == "sport_type":
+        st.session_state.sport_type = value
+    if key == "is_professional":
+        st.session_state.is_professional = "Yes" if value else "No"
+
+
+def handle_chat_reply(user_text: str) -> None:
+    flow = get_question_flow(st.session_state.training_profile)
+    idx = st.session_state.training_question_index
+    if idx >= len(flow):
+        return
+
+    current_question = flow[idx]
+    is_valid, parsed_value, error_text = validate_answer(current_question, user_text)
+    append_user_message(user_text)
+
+    if not is_valid:
+        append_bot_message(error_text or "Invalid answer.")
+        append_bot_message(current_question["prompt"])
+        return
+
+    update_profile_from_answer(str(current_question["key"]), parsed_value)
+    st.session_state.training_question_index += 1
+
+    refreshed_flow = get_question_flow(st.session_state.training_profile)
+    if st.session_state.training_question_index < len(refreshed_flow):
+        append_bot_message(refreshed_flow[st.session_state.training_question_index]["prompt"])
+    else:
+        st.session_state.training_chat_complete = True
+        append_bot_message("Great. I have all the answers. I am generating your session now.")
+        generate_training_from_chat_profile()
+
+
+# -----------------------------------------------------------------------------
+# GENERATION HELPERS
+# -----------------------------------------------------------------------------
 def duration_bucket(duration: int) -> str:
     if duration <= 55:
         return "short"
@@ -628,7 +498,7 @@ def duration_bucket(duration: int) -> str:
 
 
 def target_exercise_count(sport: str, duration: int) -> int:
-    style = SPORT_DURATION_STYLE.get(sport, {"short": 6, "standard": 7, "long": 8})
+    style = SPORT_DURATION_STYLE.get(sport, SPORT_DURATION_STYLE["default"])
     return style[duration_bucket(duration)]
 
 
@@ -640,7 +510,6 @@ def get_blueprint(sport: str, session_type: str) -> Dict[str, int]:
 def trim_blueprint_to_target(blueprint: Dict[str, int], target_total: int) -> Dict[str, int]:
     adjusted = dict(blueprint)
     current_total = sum(adjusted.values())
-
     removable_order = ["Tactical", "Technical", "Physical", "Warm-Up"]
     addable_order = ["Technical", "Physical", "Tactical"]
 
@@ -662,73 +531,7 @@ def trim_blueprint_to_target(blueprint: Dict[str, int], target_total: int) -> Di
             current_total += 1
             if current_total >= target_total:
                 break
-
     return adjusted
-
-
-def parse_prescription_minutes(prescription: str) -> Optional[int]:
-    text = prescription.lower().replace("~", "").strip()
-
-    m = re.search(r"(\d+)\s*(?:x|rounds? x|sets? x)\s*(\d+)\s*minutes?", text)
-    if m:
-        return int(m.group(1)) * int(m.group(2))
-
-    m = re.search(r"(\d+)\s*rounds?\s*x\s*(\d+)\s*minutes?", text)
-    if m:
-        return int(m.group(1)) * int(m.group(2))
-
-    if "minutes total" in text:
-        m = re.search(r"(\d+)\s*minutes? total", text)
-        if m:
-            return int(m.group(1))
-
-    if "minutes easy" in text:
-        m = re.search(r"(\d+)\s*minutes? easy", text)
-        if m:
-            return int(m.group(1)) + 4
-
-    if "minutes erg + " in text:
-        nums = [int(n) for n in re.findall(r"(\d+)\s*minutes?", text)]
-        if nums:
-            return sum(nums)
-
-    nums = [int(n) for n in re.findall(r"(\d+)\s*minutes?", text)]
-    if len(nums) == 1:
-        return nums[0]
-
-    if "20-45 minutes" in text:
-        return 30
-    if "8-12 minutes" in text:
-        return 10
-
-    if "shots total" in text:
-        return 10
-    if "made shots" in text:
-        return 10
-    if "quality passes" in text:
-        return 10
-    if "mock waves" in text:
-        return 9
-    if "light sets per lift" in text:
-        return 8
-
-    if "x" in text and "seconds" in text:
-        sec_nums = [int(n) for n in re.findall(r"(\d+)\s*seconds?", text)]
-        rep_nums = [int(n) for n in re.findall(r"(\d+)\s*x", text)]
-        if sec_nums and rep_nums:
-            total_seconds = rep_nums[0] * sec_nums[0]
-            rest_match = re.search(r"(\d+)\s*seconds? rest", text)
-            if rest_match:
-                total_seconds += max(0, rep_nums[0] - 1) * int(rest_match.group(1))
-            return max(4, round(total_seconds / 60))
-
-    if "sets x" in text and "reps" in text:
-        sets_match = re.search(r"(\d+)\s*sets?", text)
-        if sets_match:
-            sets = int(sets_match.group(1))
-            return max(6, sets * 3)
-
-    return None
 
 
 def category_share_map(session_type: str, goal: str) -> Dict[str, float]:
@@ -736,327 +539,133 @@ def category_share_map(session_type: str, goal: str) -> Dict[str, float]:
     adjustments = SESSION_TYPE_CATEGORY_ADJUSTMENTS.get(session_type, {})
     for key, mult in adjustments.items():
         shares[key] = shares.get(key, 0.0) * mult
-
-    priorities = GOAL_PRIORITIES.get(goal, [])
-    for cat in priorities:
+    for cat in GOAL_PRIORITIES.get(goal, []):
         shares[cat] = shares.get(cat, 0.0) * 1.08
-
-    total = sum(shares.values())
+    total = sum(shares.values()) or 1.0
     return {k: v / total for k, v in shares.items()}
 
 
-def position_matches(ex: Exercise, position: str) -> bool:
-    if not ex.position_tags or "All" in ex.position_tags:
-        return True
-    return position in ex.position_tags
-
-
-def level_matches(ex: Exercise, level: str) -> bool:
-    if not ex.level_tags:
-        return True
-    return level in ex.level_tags or "All" in ex.level_tags
-
-
-def phase_matches(ex: Exercise, season_phase: str) -> bool:
-    if not ex.phase_tags:
-        return True
-    return season_phase in ex.phase_tags or "All" in ex.phase_tags
-
-
-def focus_matches(ex: Exercise, primary_focus: str) -> bool:
-    if not ex.focus_tags:
-        return False
-    return primary_focus in ex.focus_tags
-
-
-def choose_exercises_for_category(
-    library_items: List[Exercise],
-    requested_count: int,
-    position: str,
-    level: str,
-    season_phase: str,
-    primary_focus: str,
-) -> List[Exercise]:
+def choose_exercises_for_category(library_items: List[Exercise], requested_count: int, position: str, level: str, season_phase: str, primary_focus: str) -> List[Exercise]:
     if not library_items or requested_count <= 0:
         return []
-
     scored: List[Tuple[float, Exercise]] = []
     for ex in library_items:
-        score = 1.0
-        if position_matches(ex, position):
-            score += 1.2
-        if level_matches(ex, level):
-            score += 0.6
-        if phase_matches(ex, season_phase):
-            score += 0.6
-        if focus_matches(ex, primary_focus):
+        score = 1.0 + random.uniform(0.0, 0.25)
+        if not ex.position_tags or "All" in ex.position_tags or position in ex.position_tags:
+            score += 1.0
+        if not ex.level_tags or "All" in ex.level_tags or level in ex.level_tags:
+            score += 0.5
+        if not ex.phase_tags or "All" in ex.phase_tags or season_phase in ex.phase_tags:
+            score += 0.5
+        if primary_focus in ex.focus_tags:
             score += 0.8
-        score += random.uniform(0.0, 0.25)
         scored.append((score, ex))
-
     scored.sort(key=lambda x: x[0], reverse=True)
-    pool = [ex for _, ex in scored]
-
-    selected = []
-    seen_names = set()
-    for ex in pool:
-        if ex.name not in seen_names:
-            selected.append(ex)
-            seen_names.add(ex.name)
-        if len(selected) >= requested_count:
-            break
-
-    if len(selected) < requested_count:
-        leftovers = [ex for ex in library_items if ex.name not in seen_names]
-        random.shuffle(leftovers)
-        selected.extend(leftovers[: max(0, requested_count - len(selected))])
-
-    return selected[:requested_count]
-
-
-def adapt_session_for_equipment(session: List[Exercise], equipment_level: str, sport: str) -> List[Exercise]:
-    normalized = normalize_equipment_level(equipment_level)
-
-    if normalized in ["Competitive", "Elite"]:
-        return session
-
-    adjusted: List[Exercise] = []
-    for ex in session:
-        heavy_tags = {"Barbell", "Machine", "Medicine ball", "Rowing erg", "Pool", "Boat", "Trap bar"}
-        if normalized == "Minimal":
-            if any(tag in heavy_tags for tag in ex.equipment_tags):
-                adjusted.append(
-                    Exercise(
-                        name=f"Adapted version of {ex.name}",
-                        category=ex.category,
-                        prescription=ex.prescription,
-                        purpose=f"Low-equipment adaptation: {ex.purpose}",
-                        equipment_tags=["Bodyweight", "Open space"],
-                        intensity_tags=ex.intensity_tags,
-                        focus_tags=ex.focus_tags,
-                        position_tags=ex.position_tags,
-                        level_tags=ex.level_tags,
-                        phase_tags=ex.phase_tags,
-                        time_weight=ex.time_weight,
-                        coaching_points=ex.coaching_points,
-                        progressions=ex.progressions,
-                        regressions=ex.regressions,
-                        risk_notes=ex.risk_notes,
-                    )
-                )
-            else:
-                adjusted.append(ex)
-        elif normalized == "Basic":
-            if any(tag in {"Barbell", "Machine", "Boat", "Trap bar"} for tag in ex.equipment_tags):
-                adjusted.append(
-                    Exercise(
-                        name=f"Basic setup adaptation - {ex.name}",
-                        category=ex.category,
-                        prescription=ex.prescription,
-                        purpose=f"Adapted for a simpler training environment. {ex.purpose}",
-                        equipment_tags=["Bodyweight", "Cones", "Bands", "Balls"],
-                        intensity_tags=ex.intensity_tags,
-                        focus_tags=ex.focus_tags,
-                        position_tags=ex.position_tags,
-                        level_tags=ex.level_tags,
-                        phase_tags=ex.phase_tags,
-                        time_weight=ex.time_weight,
-                        coaching_points=ex.coaching_points,
-                        progressions=ex.progressions,
-                        regressions=ex.regressions,
-                        risk_notes=ex.risk_notes,
-                    )
-                )
-            else:
-                adjusted.append(ex)
-        else:
-            adjusted.append(ex)
-
-    return adjusted
+    return [ex for _, ex in scored[:requested_count]]
 
 
 def adjust_duration_for_readiness(duration: int, readiness: str, goal: str, session_type: str) -> int:
     multiplier = READINESS_MULTIPLIERS.get(readiness, 1.0)
     adjusted = round(duration * multiplier)
-
     if goal in ["Return after a break", "Injury prevention"]:
         adjusted = min(adjusted, duration)
-
     if session_type == "Competition Week":
         adjusted = min(adjusted, duration)
-
     return max(30, adjusted)
 
 
-def allocate_block_minutes(
-    session: List[Exercise],
-    duration: int,
-    session_type: str,
-    goal: str,
-) -> List[int]:
-    explicit_minutes: List[Optional[int]] = [parse_prescription_minutes(ex.prescription) for ex in session]
-    fixed_total = sum(m for m in explicit_minutes if m is not None)
-    remaining = max(0, duration - fixed_total)
-
+def allocate_block_minutes(session: List[Exercise], duration: int, session_type: str, goal: str) -> List[int]:
     shares = category_share_map(session_type, goal)
-    unresolved_indices = [idx for idx, value in enumerate(explicit_minutes) if value is None]
+    category_weighted = [shares.get(ex.category, 0.1) * max(0.5, ex.time_weight) for ex in session]
+    total_weight = sum(category_weighted) or 1.0
+    minutes = [max(4, round(duration * (w / total_weight))) for w in category_weighted]
 
-    if unresolved_indices:
-        category_weights: Dict[int, float] = {}
-        for idx in unresolved_indices:
-            ex = session[idx]
-            category_weights[idx] = shares.get(ex.category, 0.1) * max(0.5, ex.time_weight)
-
-        total_weight = sum(category_weights.values()) or 1.0
-        allocations = {}
-        for idx in unresolved_indices:
-            raw = remaining * (category_weights[idx] / total_weight)
-            allocations[idx] = max(5, round(raw))
-
-        current_sum = sum(allocations.values())
-        diff = remaining - current_sum
-        ordered_indices = sorted(unresolved_indices, key=lambda i: category_weights[i], reverse=True)
-
-        pointer = 0
-        while diff != 0 and ordered_indices:
-            i = ordered_indices[pointer % len(ordered_indices)]
-            if diff > 0:
-                allocations[i] += 1
-                diff -= 1
-            elif allocations[i] > 5:
-                allocations[i] -= 1
-                diff += 1
-            pointer += 1
-
-        for idx in unresolved_indices:
-            explicit_minutes[idx] = allocations[idx]
-
-    return [int(value or 0) for value in explicit_minutes]
+    diff = duration - sum(minutes)
+    index_cycle = list(range(len(minutes)))
+    i = 0
+    while diff != 0 and index_cycle:
+        idx = index_cycle[i % len(index_cycle)]
+        if diff > 0:
+            minutes[idx] += 1
+            diff -= 1
+        elif minutes[idx] > 4:
+            minutes[idx] -= 1
+            diff += 1
+        i += 1
+    return minutes
 
 
-def build_session(
-    sport: str,
-    position: str,
-    level: str,
-    session_type: str,
-    equipment_level: str,
-    duration: int,
-    season_phase: str,
-    primary_focus: str,
-) -> List[Exercise]:
-    lib = SPORT_LIBRARY[sport]
-    blueprint = get_blueprint(sport, session_type)
-    blueprint = trim_blueprint_to_target(blueprint, target_exercise_count(sport, duration))
+def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int], Dict[str, object]]:
+    raw_sport = str(profile.get("sport", "")).strip()
+    supported_sport = match_supported_sport(raw_sport)
+    sport_for_engine = supported_sport or "General"
+    library = SPORT_LIBRARY.get(supported_sport, DEFAULT_GENERAL_LIBRARY)
+
+    session_type = str(profile.get("session_type", "Balanced Session"))
+    duration = int(profile.get("duration", 75))
+    readiness = str(profile.get("readiness", "Moderate"))
+    goal = str(profile.get("goal", "Improve performance"))
+    level = str(profile.get("level", "Intermediate"))
+    season_phase = str(profile.get("season_phase", "In-Season"))
+    primary_focus = str(profile.get("primary_focus", "Technical Quality"))
+    position = str(profile.get("position", "General Profile"))
+
+    adjusted_duration = adjust_duration_for_readiness(duration, readiness, goal, session_type)
+    if bool(profile.get("competition_soon", False)):
+        adjusted_duration = min(adjusted_duration, duration)
+        if session_type == "Physical Priority":
+            session_type = "Competition Week"
+    if bool(profile.get("pain_flag", False)) or bool(profile.get("needs_low_impact", False)):
+        adjusted_duration = max(30, adjusted_duration - 5)
+
+    blueprint = get_blueprint(supported_sport or "default", session_type)
+    blueprint = trim_blueprint_to_target(blueprint, target_exercise_count(supported_sport or "default", adjusted_duration))
 
     session: List[Exercise] = []
-    for category, requested_count in blueprint.items():
-        library_items = lib.get(category, [])
-        chosen = choose_exercises_for_category(
-            library_items=library_items,
-            requested_count=requested_count,
-            position=position,
-            level=level,
-            season_phase=season_phase,
-            primary_focus=primary_focus,
+    for category, count in blueprint.items():
+        session.extend(
+            choose_exercises_for_category(
+                library_items=library.get(category, []),
+                requested_count=count,
+                position=position,
+                level=level,
+                season_phase=season_phase,
+                primary_focus=primary_focus,
+            )
         )
-        session.extend(chosen)
 
-    return adapt_session_for_equipment(session, equipment_level, sport)
+    block_minutes = allocate_block_minutes(session, adjusted_duration, session_type, goal)
 
-
-def weekly_focus(days: int, goal: str, season_phase: str) -> List[str]:
-    base = [
-        "Day 1: Main development session",
-        "Day 2: Technical efficiency session",
-        "Day 3: Speed / power / intensity session",
-        "Day 4: Recovery or light skill session",
-        "Day 5: Tactical or match simulation",
-        "Day 6: Strength / conditioning support",
-        "Day 7: Full recovery",
-    ]
-    if goal == "Return after a break":
-        base[0] = "Day 1: Controlled re-entry session"
-        base[2] = "Day 3: Moderate intensity exposure"
-    elif goal == "Competition preparation":
-        base[4] = "Day 5: Competition simulation"
-    if season_phase == "Competition Block":
-        base[1] = "Day 2: Sharp but lower-volume technical session"
-        base[5] = "Day 6: Recovery emphasis or light activation"
-    return base[:max(1, min(days, 7))]
-
-
-def generate_session_objectives(goal: str, session_type: str, primary_focus: str, readiness: str) -> List[str]:
-    objectives = [
-        f"Primary aim: {goal.lower()}.",
-        f"Session emphasis: {session_type.lower()}.",
-        f"Performance focus today: {primary_focus.lower()}.",
-    ]
-    if readiness == "Low":
-        objectives.append("Manage load intelligently and protect technical quality.")
-    elif readiness == "High":
-        objectives.append("Use high readiness to push quality and intent where appropriate.")
-    return objectives
-
-
-def build_profile_summary(
-    role: str,
-    sport: str,
-    position: str,
-    goal: str,
-    level: str,
-    weekly_frequency: int,
-    duration: int,
-    adjusted_duration: int,
-    session_type: str,
-    equipment_level: str,
-    readiness: str,
-    intensity_mode: str,
-    season_phase: str,
-    primary_focus: str,
-) -> Dict[str, object]:
-    return {
-        "role": role,
-        "sport": sport,
-        "position": position,
-        "goal": goal,
-        "level": level,
-        "weekly_frequency": weekly_frequency,
-        "duration_minutes_requested": duration,
-        "duration_minutes_adjusted": adjusted_duration,
+    meta = {
+        "supported_sport": supported_sport,
+        "sport_for_engine": sport_for_engine,
+        "adjusted_duration": adjusted_duration,
         "session_type": session_type,
-        "equipment_level": equipment_level,
-        "readiness": readiness,
-        "intensity_mode": intensity_mode,
-        "season_phase": season_phase,
-        "primary_focus": primary_focus,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "gym_summary_enabled": bool(supported_sport == "Gym"),
     }
+    return session, block_minutes, meta
 
 
-def render_equipment_level_box(equipment_level: str) -> None:
-    info = get_equipment_guidance(equipment_level)
-    st.info(
-        f"**Equipment level: {info['label']}**\n\n"
-        f"{info['description']}\n\n"
-        f"Typical setup: {', '.join(info['includes'])}"
-    )
+def build_session_title(profile: Dict[str, object]) -> str:
+    athlete = str(profile.get("athlete_name", "Athlete")).strip() or "Athlete"
+    sport = str(profile.get("sport", "Sport")).strip() or "Sport"
+    goal = str(profile.get("goal", "Performance")).strip()
+    return f"{athlete} - {sport} session ({goal})"
 
 
-def build_session_summary_line(session: List[Exercise], block_minutes: List[int], duration: int) -> str:
-    counts_by_category: Dict[str, int] = {}
-    for ex in session:
-        counts_by_category[ex.category] = counts_by_category.get(ex.category, 0) + 1
-    category_bits = [f"{cat}: {count}" for cat, count in counts_by_category.items()]
-    return f"{len(session)} training blocks | Planned duration: ~{sum(block_minutes)} of {duration} minutes | " + " | ".join(category_bits)
+def build_session_hash(profile: Dict[str, object], session: List[Exercise]) -> str:
+    raw = f"{profile.get('athlete_name','')}|{profile.get('sport','')}|{profile.get('generated_at','')}|{'|'.join(ex.name for ex in session)}"
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()[:12]
 
 
 def estimate_session_load(level: str, readiness: str, intensity_mode: str, duration: int) -> str:
     score = 0
-    score += {"Beginner": 1, "Intermediate": 2, "Advanced": 3, "Elite": 4}[level]
-    score += {"Low": 0, "Moderate": 1, "High": 2}[readiness]
-    score += {"Controlled": 0, "Standard": 1, "High": 2, "Peak": 3}[intensity_mode]
+    score += {"Beginner": 1, "Intermediate": 2, "Advanced": 3, "Elite": 4}.get(level, 2)
+    score += {"Low": 0, "Moderate": 1, "High": 2}.get(readiness, 1)
+    score += {"Controlled": 0, "Standard": 1, "High": 2, "Peak": 3}.get(intensity_mode, 1)
     score += 1 if duration >= 75 else 0
     score += 1 if duration >= 105 else 0
-
     if score <= 3:
         return "Low to Moderate"
     if score <= 6:
@@ -1066,289 +675,376 @@ def estimate_session_load(level: str, readiness: str, intensity_mode: str, durat
     return "High"
 
 
-def extract_progression_tip(ex: Exercise, level: str, readiness: str) -> str:
-    if readiness == "Low" and ex.regressions:
-        return ex.regressions[0]
-    if level in ["Advanced", "Elite"] and ex.progressions:
-        return ex.progressions[0]
-    if ex.progressions:
-        return ex.progressions[0]
-    if ex.regressions:
-        return ex.regressions[0]
-    return "Keep execution quality high before adding complexity."
+def build_session_payload(profile: Dict[str, object], session: List[Exercise], block_minutes: List[int], meta: Dict[str, object]) -> Dict[str, object]:
+    safe_profile = dict(profile)
+    safe_profile["generated_at"] = meta["generated_at"]
+    payload = {
+        "session_id": build_session_hash(safe_profile, session),
+        "title": build_session_title(profile),
+        "profile": safe_profile,
+        "meta": meta,
+        "exercises": [
+            {
+                "name": ex.name,
+                "category": ex.category,
+                "prescription": ex.prescription,
+                "purpose": ex.purpose,
+                "coaching_points": ex.coaching_points,
+                "planned_block_minutes": minutes,
+            }
+            for ex, minutes in zip(session, block_minutes)
+        ],
+    }
+    return payload
 
 
-def build_coach_summary(
-    sport: str,
-    position: str,
-    goal: str,
-    session_type: str,
-    primary_focus: str,
-    readiness: str,
-    intensity_mode: str,
-    season_phase: str,
-) -> List[str]:
-    return [
-        f"{sport} profile selected with position emphasis on {position}.",
-        f"The plan is designed around {goal.lower()} with a {session_type.lower()} structure.",
-        f"The generator prioritized {primary_focus.lower()} and adjusted for {readiness.lower()} readiness.",
-        f"Season context considered: {season_phase.lower()}.",
-        INTENSITY_NOTES[intensity_mode],
-    ]
+def persist_generated_session(payload: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
+    saved = st.session_state.get("saved_training_sessions", [])
+    saved = [s for s in saved if s.get("session_id") != payload.get("session_id")]
+    saved.insert(0, payload)
+    st.session_state.saved_training_sessions = saved[:50]
+    if on_persist:
+        on_persist()
 
 
-def build_microcycle_example(
-    weekly_frequency: int,
-    session_type: str,
-    goal: str,
-    season_phase: str,
-    primary_focus: str,
-) -> List[str]:
-    base = weekly_focus(weekly_frequency, goal, season_phase)
-    detailed = []
-    for i, item in enumerate(base, start=1):
-        if i == 1:
-            detailed.append(f"{item} | Main emphasis: {session_type} | Priority: {primary_focus}")
-        elif i == 2:
-            detailed.append(f"{item} | Lower stress than Day 1, quality technical execution")
-        elif i == 3:
-            detailed.append(f"{item} | High neural output if athlete is fresh")
-        elif i == 4:
-            detailed.append(f"{item} | Restore freshness and sharpen movement quality")
-        elif i == 5:
-            detailed.append(f"{item} | Competitive rhythm and decision quality")
-        elif i == 6:
-            detailed.append(f"{item} | Supportive physical work without unnecessary fatigue")
+def generate_training_from_chat_profile() -> None:
+    profile = dict(st.session_state.training_profile)
+    session, block_minutes, meta = build_session(profile)
+    payload = build_session_payload(profile, session, block_minutes, meta)
+    st.session_state.latest_training_payload = payload
+    st.session_state.latest_training_summary = None
+    persist_generated_session(payload, st.session_state.get("_training_on_persist"))
+
+
+# -----------------------------------------------------------------------------
+# GYM TRAINING SUMMARY + LOGGING
+# -----------------------------------------------------------------------------
+def is_gym_session(payload: Optional[Dict[str, object]]) -> bool:
+    if not payload:
+        return False
+    return bool(payload.get("meta", {}).get("gym_summary_enabled", False))
+
+
+def initialize_summary_state(session_id: str, exercises: List[Dict[str, object]]) -> None:
+    key = f"training_summary_{session_id}"
+    if key not in st.session_state:
+        st.session_state[key] = {
+            ex["name"]: {"done": True, "reps": None, "weight": None}
+            for ex in exercises
+        }
+
+
+def estimate_exercise_calories(exercise_name: str, category: str, reps: Optional[float], weight: Optional[float], done: bool) -> float:
+    if not done:
+        return 0.0
+    reps_value = float(reps or 0)
+    weight_value = float(weight or 0)
+
+    category_base = {
+        "Warm-Up": 35,
+        "Technical": 55,
+        "Physical": 95,
+        "Tactical": 75,
+        "Recovery": 25,
+    }.get(category, 50)
+
+    movement_bonus = (reps_value * 0.85) + (weight_value * 0.32)
+
+    lower_name = exercise_name.lower()
+    if any(word in lower_name for word in ["squat", "leg press", "deadlift", "trap bar"]):
+        movement_bonus *= 1.22
+    elif any(word in lower_name for word in ["bench", "push", "press"]):
+        movement_bonus *= 1.08
+    elif any(word in lower_name for word in ["row", "pull"]):
+        movement_bonus *= 1.05
+    elif any(word in lower_name for word in ["conditioning", "finisher"]):
+        movement_bonus *= 1.35
+
+    return round(category_base + movement_bonus, 1)
+
+
+def summarize_logged_session(payload: Dict[str, object], exercise_logs: Dict[str, Dict[str, object]]) -> Dict[str, object]:
+    exercises = payload["exercises"]
+    total_calories = 0.0
+    completed_count = 0
+    skipped_count = 0
+    total_weight_volume = 0.0
+    strength_bias = 0
+    conditioning_bias = 0
+
+    for ex in exercises:
+        name = ex["name"]
+        category = ex["category"]
+        log = exercise_logs.get(name, {})
+        done = bool(log.get("done", False))
+        reps = float(log.get("reps") or 0)
+        weight = float(log.get("weight") or 0)
+
+        calories = estimate_exercise_calories(name, category, reps, weight, done)
+        total_calories += calories
+
+        if done:
+            completed_count += 1
+            total_weight_volume += reps * weight
+            if category == "Physical":
+                strength_bias += 1
+            if category in {"Warm-Up", "Conditioning", "Tactical"} or "conditioning" in name.lower():
+                conditioning_bias += 1
         else:
-            detailed.append(f"{item} | Full recovery, mobility, sleep and hydration focus")
-    return detailed
+            skipped_count += 1
+
+    utilization = 0 if not exercises else round((completed_count / len(exercises)) * 100, 1)
+    if strength_bias >= conditioning_bias + 1:
+        suitability = "better suited for hypertrophy / strength support"
+    elif conditioning_bias > strength_bias:
+        suitability = "better suited for conditioning / calorie expenditure"
+    else:
+        suitability = "well balanced between strength support and general training quality"
+
+    return {
+        "total_estimated_calorie_burn": round(total_calories, 1),
+        "aproveitamento_percent": utilization,
+        "completed_count": completed_count,
+        "skipped_count": skipped_count,
+        "total_weight_volume": round(total_weight_volume, 1),
+        "suitability_note": suitability,
+    }
 
 
-def render_metric_cards(adjusted_duration: int, estimated_load: str, intensity_mode: str, readiness: str) -> None:
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Planned minutes", adjusted_duration)
-    c2.metric("Estimated load", estimated_load)
-    c3.metric("Intensity mode", intensity_mode)
-    c4.metric("Readiness", readiness)
+def compare_to_previous_logs(current_summary: Dict[str, object]) -> str:
+    logs = st.session_state.get("user_training_logs", [])
+    if not logs:
+        return "This is your first saved gym training summary in this profile."
+
+    previous = logs[0]
+    prev_cals = float(previous.get("summary", {}).get("total_estimated_calorie_burn", 0))
+    current_cals = float(current_summary.get("total_estimated_calorie_burn", 0))
+    diff = round(current_cals - prev_cals, 1)
+
+    if diff > 0:
+        return f"Compared with your previous logged gym session, you burned about {diff} more estimated calories this time."
+    if diff < 0:
+        return f"Compared with your previous logged gym session, you burned about {abs(diff)} fewer estimated calories this time."
+    return "Compared with your previous logged gym session, the estimated calorie burn stayed about the same."
+
+
+def save_training_log(payload: Dict[str, object], exercise_logs: Dict[str, Dict[str, object]], summary: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
+    log_record = {
+        "session_id": payload.get("session_id"),
+        "title": payload.get("title"),
+        "logged_at": datetime.now().isoformat(timespec="seconds"),
+        "sport": payload.get("profile", {}).get("sport"),
+        "profile_email": st.session_state.get("profile_email", ""),
+        "summary": summary,
+        "exercise_logs": exercise_logs,
+    }
+    logs = st.session_state.get("user_training_logs", [])
+    logs.insert(0, log_record)
+    st.session_state.user_training_logs = logs[:100]
+    st.session_state.latest_training_summary = log_record
+    if on_persist:
+        on_persist()
 
 
 # -----------------------------------------------------------------------------
-# STREAMLIT SECTION
+# RENDERERS
 # -----------------------------------------------------------------------------
+def render_chat_messages() -> None:
+    for idx, message in enumerate(st.session_state.generator_chat_messages):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message["role"] == "assistant" and idx == len(st.session_state.generator_chat_messages) - 1:
+                flow = get_question_flow(st.session_state.training_profile)
+                q_idx = st.session_state.training_question_index
+                if q_idx < len(flow):
+                    q = flow[q_idx]
+                    if q.get("type") in {"select", "select_or_text"}:
+                        options = q.get("options", [])
+                        if options:
+                            st.caption("Options: " + " | ".join(str(o) for o in options))
 
-def render_training_generator_section() -> None:
-    st.header("Training Generator Pro")
+
+def render_current_session(payload: Dict[str, object]) -> None:
+    profile = payload["profile"]
+    meta = payload["meta"]
+    exercises = payload["exercises"]
+    intensity_mode = str(profile.get("intensity_mode", "Standard"))
+
+    st.subheader(payload["title"])
     st.write(
-        "Generate elite-level sessions with exact reps, sets, and time prescriptions, plus readiness adjustment, "
-        "season context, position-specific emphasis, coaching points, progressions, and a more professional planning layer."
+        f"**Sport:** {profile.get('sport')} | **Position/Profile:** {profile.get('position')} | **Goal:** {profile.get('goal')} | "
+        f"**Level:** {profile.get('level')} | **Weekly frequency:** {profile.get('weekly_target')} | "
+        f"**Planned duration:** {meta.get('adjusted_duration')} min"
     )
-
-    home_profile = get_home_profile_defaults()
-    saved_sport = match_supported_sport(str(home_profile.get("sport", "")))
-    saved_goal = home_profile.get("goal") if home_profile.get("goal") in GOALS else None
-    saved_level = home_profile.get("level") if home_profile.get("level") in LEVELS else None
-    saved_frequency = home_profile.get("weekly_target") if isinstance(home_profile.get("weekly_target"), int) else None
-    saved_home_notes = str(home_profile.get("home_notes", "")).strip()
-
-    using_saved_fields = []
-    if saved_sport:
-        using_saved_fields.append(f"Sport: {saved_sport}")
-    if saved_goal:
-        using_saved_fields.append(f"Goal: {saved_goal}")
-    if saved_level:
-        using_saved_fields.append(f"Level: {saved_level}")
-    if saved_frequency:
-        using_saved_fields.append(f"Weekly frequency: {saved_frequency}")
-
-    if using_saved_fields:
-        st.info("Using saved Home profile answers for: " + " | ".join(using_saved_fields))
-
-    role = st.radio("Are you a player or coach?", ["Player", "Coach"], horizontal=True)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if saved_sport:
-            sport = saved_sport
-            st.text_input("Choose the sport", value=sport, disabled=True, key="training_saved_sport_display")
-        else:
-            sport = st.selectbox("Choose the sport", list(SPORT_POSITIONS.keys()))
-
-        position = st.selectbox("Choose the position / profile", SPORT_POSITIONS[sport])
-
-        if saved_goal:
-            goal = saved_goal
-            st.text_input("Main goal", value=goal, disabled=True, key="training_saved_goal_display")
-        else:
-            goal = st.selectbox("Main goal", GOALS)
-
-        if saved_level:
-            level = saved_level
-            st.text_input("Current level", value=level, disabled=True, key="training_saved_level_display")
-        else:
-            level = st.selectbox("Current level", LEVELS)
-
-        primary_focus = st.selectbox("Primary focus today", PRIMARY_FOCUS_OPTIONS)
-
-    with c2:
-        if saved_frequency:
-            weekly_frequency = saved_frequency
-            st.number_input(
-                get_frequency_prompt(goal, level),
-                min_value=1,
-                max_value=7,
-                value=int(weekly_frequency),
-                disabled=True,
-                key="training_saved_weekly_frequency_display",
-            )
-        else:
-            weekly_frequency = st.slider(get_frequency_prompt(goal, level), 1, 7, 4)
-
-        session_type = st.selectbox("Session type", SESSION_TYPES)
-        duration = st.slider("Requested session duration (minutes)", 30, 180, 75, step=5)
-        equipment_level = st.selectbox(
-            "Level of equipment available",
-            EQUIPMENT_LEVELS,
-            index=2,
-            help="Choose the overall quality of the equipment and training environment available.",
-        )
-        season_phase = st.selectbox("Season phase", SEASON_PHASES)
-
-    c3, c4 = st.columns(2)
-    with c3:
-        readiness = st.select_slider("Current readiness", options=READINESS_OPTIONS, value="Moderate")
-        intensity_mode = st.select_slider("Desired intensity mode", options=INTENSITY_MODES, value="Standard")
-    with c4:
-        pain_flag = st.checkbox("There is some pain / discomfort today")
-        competition_soon = st.checkbox("Competition or match in the next 3 days")
-        needs_low_impact = st.checkbox("Prefer lower-impact loading today")
-
-    render_equipment_level_box(equipment_level)
-
-    default_notes = saved_home_notes if saved_home_notes else ""
-    notes = st.text_area(
-        "Extra notes",
-        value=default_notes,
-        placeholder="Examples: match in 3 days, shoulder fatigue, focus on speed, beginner team, small training space, heavy legs, needs serve emphasis...",
-        height=110,
-    )
-
     st.caption(
-        "Pro architecture included: structured athlete profile, future payload builder, dynamic session blueprint logic, "
-        "position-aware exercise selection, readiness/load adjustment, and modular timing functions. No API has been connected yet."
+        f"Session type: {meta.get('session_type')} | Equipment: {profile.get('equipment_level')} | "
+        f"Season phase: {profile.get('season_phase')} | Focus: {profile.get('primary_focus')}"
     )
 
-    if st.button("Generate Pro Training Session", type="primary", use_container_width=True):
-        adjusted_duration = adjust_duration_for_readiness(duration, readiness, goal, session_type)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Planned minutes", meta.get("adjusted_duration"))
+    c2.metric("Estimated load", estimate_session_load(str(profile.get("level", "Intermediate")), str(profile.get("readiness", "Moderate")), intensity_mode, int(meta.get("adjusted_duration", 75))))
+    c3.metric("Exercises / blocks", len(exercises))
 
-        if competition_soon:
-            adjusted_duration = min(adjusted_duration, duration)
-            if session_type == "Physical Priority":
-                session_type = "Competition Week"
+    st.info(INTENSITY_NOTES.get(intensity_mode, INTENSITY_NOTES["Standard"]))
+    notes = str(profile.get("notes", "")).strip()
+    if notes and notes.lower() != "none":
+        st.info(f"Context notes considered: {notes}")
+    if bool(profile.get("pain_flag")):
+        st.warning("Pain/discomfort flagged: reduce aggressive loading if symptoms change mechanics or movement quality.")
+    if bool(profile.get("competition_soon")):
+        st.warning("Competition proximity flagged: the session was kept sharper and less fatigue-heavy.")
 
-        if pain_flag or needs_low_impact:
-            adjusted_duration = max(30, adjusted_duration - 5)
+    st.markdown("### Training blocks")
+    for idx, ex in enumerate(exercises, start=1):
+        with st.expander(f"{idx}. {ex['name']}", expanded=idx <= 3):
+            st.markdown(f"**Category:** {ex['category']}")
+            st.markdown(f"**Prescription:** {ex['prescription']}")
+            st.markdown(f"**Purpose:** {ex['purpose']}")
+            st.markdown(f"**Planned block duration:** ~{ex['planned_block_minutes']} minutes")
+            coaching_points = ex.get("coaching_points") or []
+            if coaching_points:
+                st.markdown("**Coaching points:**")
+                for point in coaching_points:
+                    st.write(f"- {point}")
 
-        session = build_session(
-            sport=sport,
-            position=position,
-            level=level,
-            session_type=session_type,
-            equipment_level=equipment_level,
-            duration=adjusted_duration,
-            season_phase=season_phase,
-            primary_focus=primary_focus,
+
+def render_training_summary_panel(payload: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
+    if not is_gym_session(payload):
+        return
+
+    with st.expander("Training summary", expanded=False):
+        st.write("Gym-only summary logger. Enter what was actually done for each exercise.")
+        initialize_summary_state(payload["session_id"], payload["exercises"])
+        state_key = f"training_summary_{payload['session_id']}"
+        summary_state = st.session_state[state_key]
+
+        for idx, ex in enumerate(payload["exercises"]):
+            ex_name = ex["name"]
+            row_key = f"{payload['session_id']}_{idx}"
+            st.markdown(f"**{ex_name}**")
+            c1, c2, c3 = st.columns([1.2, 1, 1])
+            with c1:
+                done_value = st.radio(
+                    "Status",
+                    ["Done", "Didn't do this one"],
+                    index=0 if summary_state[ex_name]["done"] else 1,
+                    horizontal=True,
+                    key=f"done_{row_key}",
+                )
+                summary_state[ex_name]["done"] = done_value == "Done"
+            with c2:
+                reps = st.number_input(
+                    "Number of reps",
+                    min_value=0.0,
+                    step=1.0,
+                    value=float(summary_state[ex_name]["reps"] or 0),
+                    disabled=not summary_state[ex_name]["done"],
+                    key=f"reps_{row_key}",
+                )
+                summary_state[ex_name]["reps"] = reps if summary_state[ex_name]["done"] else None
+            with c3:
+                weight = st.number_input(
+                    "Weight used",
+                    min_value=0.0,
+                    step=1.0,
+                    value=float(summary_state[ex_name]["weight"] or 0),
+                    disabled=not summary_state[ex_name]["done"],
+                    key=f"weight_{row_key}",
+                )
+                summary_state[ex_name]["weight"] = weight if summary_state[ex_name]["done"] else None
+            st.divider()
+
+        if st.button("Calculate and save training summary", type="primary", use_container_width=True, key=f"save_summary_{payload['session_id']}"):
+            summary = summarize_logged_session(payload, summary_state)
+            comparison_text = compare_to_previous_logs(summary)
+            save_training_log(payload, summary_state, summary, on_persist)
+            st.success("Training summary saved.")
+            st.info(
+                f"Aproveitamento of the session: {summary['aproveitamento_percent']}%\n\n"
+                f"Total estimated calorie burn for this session: {summary['total_estimated_calorie_burn']}\n\n"
+                f"{comparison_text}\n\n"
+                f"This session was {summary['suitability_note']}."
+            )
+
+
+def render_latest_summary_card() -> None:
+    latest = st.session_state.get("latest_training_summary")
+    if not latest:
+        return
+    summary = latest["summary"]
+    st.markdown("### Latest saved gym summary")
+    st.write(
+        f"**Session:** {latest['title']} | **Logged at:** {latest['logged_at']} | "
+        f"**Calories:** {summary['total_estimated_calorie_burn']} | **Aproveitamento:** {summary['aproveitamento_percent']}%"
+    )
+    st.caption(summary["suitability_note"])
+
+
+def render_history_panel() -> None:
+    with st.expander("Saved training history", expanded=False):
+        generated = st.session_state.get("saved_training_sessions", [])
+        logs = st.session_state.get("user_training_logs", [])
+
+        st.markdown("**Generated sessions**")
+        if not generated:
+            st.caption("No generated sessions saved yet.")
+        for session in generated[:8]:
+            st.write(f"- {session['title']} | {session['meta']['generated_at']}")
+
+        st.markdown("**Saved gym summaries**")
+        if not logs:
+            st.caption("No gym summaries logged yet.")
+        for log in logs[:8]:
+            st.write(
+                f"- {log['title']} | {log['logged_at']} | Calories: {log['summary']['total_estimated_calorie_burn']} | Aproveitamento: {log['summary']['aproveitamento_percent']}%"
+            )
+
+
+def render_training_generator_section(on_persist: Optional[Callable[[], None]] = None) -> None:
+    init_generator_state()
+    st.session_state["_training_on_persist"] = on_persist
+
+    st.header("Training Generator")
+    st.write(
+        "This section now starts as the default interface of the app. It unites the old homepage profile collection with the training generator, in a one-question-at-a-time chat flow."
+    )
+
+    top1, top2 = st.columns([1, 1])
+    with top1:
+        if not st.session_state.training_chat_started:
+            if st.button("Start training chat", type="primary", use_container_width=True, key="start_training_chat_btn"):
+                start_training_chat()
+                st.rerun()
+        else:
+            if st.button("Restart training chat", use_container_width=True, key="restart_training_chat_btn"):
+                start_training_chat()
+                st.rerun()
+    with top2:
+        st.caption(
+            "For non-cataloged sports, the chat still works and stores the profile. The code is already prepared so the future API can interpret those sports dynamically."
         )
-        block_minutes = allocate_block_minutes(session, adjusted_duration, session_type, goal)
 
-        profile_summary = build_profile_summary(
-            role=role,
-            sport=sport,
-            position=position,
-            goal=goal,
-            level=level,
-            weekly_frequency=weekly_frequency,
-            duration=duration,
-            adjusted_duration=adjusted_duration,
-            session_type=session_type,
-            equipment_level=equipment_level,
-            readiness=readiness,
-            intensity_mode=intensity_mode,
-            season_phase=season_phase,
-            primary_focus=primary_focus,
-        )
-        future_payload = build_future_api_payload(profile_summary)
-        estimated_load = estimate_session_load(level, readiness, intensity_mode, adjusted_duration)
+    if st.session_state.training_chat_started:
+        render_chat_messages()
 
-        st.subheader(f"{sport} Pro Session Plan")
-        st.write(
-            f"**Profile:** {role} | **Position:** {position} | **Goal:** {goal} | **Level:** {level} | "
-            f"**Weekly frequency:** {weekly_frequency} | **Requested duration:** {duration} min | **Planned duration:** {adjusted_duration} min"
-        )
-        st.caption(f"Equipment level selected: {equipment_level} | Season phase: {season_phase} | Primary focus: {primary_focus}")
-        st.caption(build_session_summary_line(session, block_minutes, adjusted_duration))
+        if not st.session_state.training_chat_complete:
+            user_reply = st.chat_input("Type your answer here")
+            if user_reply:
+                handle_chat_reply(user_reply)
+                if on_persist:
+                    on_persist()
+                st.rerun()
 
-        render_metric_cards(adjusted_duration, estimated_load, intensity_mode, readiness)
+    latest_payload = st.session_state.get("latest_training_payload")
+    if latest_payload:
+        st.divider()
+        render_current_session(latest_payload)
+        render_training_summary_panel(latest_payload, on_persist)
+        render_latest_summary_card()
 
-        if notes.strip():
-            st.info(f"Context notes considered: {notes}")
-
-        if pain_flag:
-            st.warning("Pain/discomfort flagged: keep technical quality high, reduce aggressive loading if symptoms change mechanics, and escalate to the Physio section if needed.")
-        if competition_soon:
-            st.warning("Competition proximity flagged: session logic shifted toward freshness and sharpness rather than accumulating fatigue.")
-
-        st.subheader("Session objectives")
-        for item in generate_session_objectives(goal, session_type, primary_focus, readiness):
-            st.write(f"- {item}")
-
-        st.subheader("Coach overview")
-        for item in build_coach_summary(sport, position, goal, session_type, primary_focus, readiness, intensity_mode, season_phase):
-            st.write(f"- {item}")
-
-        st.subheader("Training blocks")
-        for idx, (ex, planned_minutes) in enumerate(zip(session, block_minutes), start=1):
-            with st.expander(f"{idx}. {ex.name}", expanded=True if idx <= 3 else False):
-                st.markdown(f"**Category:** {ex.category}")
-                st.markdown(f"**Prescription:** {ex.prescription}")
-                st.markdown(f"**Purpose:** {ex.purpose}")
-                st.markdown(f"**Planned block duration in this session:** ~{planned_minutes} minutes")
-                if ex.equipment_tags:
-                    st.markdown(f"**Typical equipment for this drill:** {', '.join(ex.equipment_tags)}")
-                if ex.focus_tags:
-                    st.markdown(f"**Key training qualities:** {', '.join(ex.focus_tags)}")
-                if ex.coaching_points:
-                    st.markdown("**Elite coaching points:**")
-                    for point in ex.coaching_points:
-                        st.write(f"- {point}")
-                st.markdown(f"**Progression / regression tip:** {extract_progression_tip(ex, level, readiness)}")
-                if ex.risk_notes:
-                    st.markdown("**Risk note:**")
-                    for note in ex.risk_notes:
-                        st.write(f"- {note}")
-
-        st.subheader("Weekly structure suggestion")
-        for item in build_microcycle_example(weekly_frequency, session_type, goal, season_phase, primary_focus):
-            st.write(f"- {item}")
-
-        st.subheader("Professional coaching reminders")
-        reminders = [
-            "Different drills should not always carry the same time load. Longer pattern work or main-set work should naturally take more room than short primers.",
-            "Use the planned block durations as the session architecture, while the prescription remains the coaching instruction.",
-            "Stop or modify a drill when execution clearly drops or movement quality breaks down.",
-            "Record key outputs such as sprint quality, serve percentage, shot quality, jump height feel, split times, stroke rate, bar speed, or session RPE.",
-            "On low-readiness days, protect quality first. On high-readiness days, push only the right parts of the session.",
-            "A professional session is not only hard — it is precise, realistic, and appropriate for the athlete’s environment and current condition.",
-        ]
-        if role == "Coach":
-            reminders.append("For teams, use the generated plan as a core structure, then split work:rest or constraints depending on starters, reserves, and rehab profiles.")
-        if pain_flag:
-            reminders.append("Pain was flagged. Reduce intensity immediately if mechanics change, symptoms worsen, or compensations appear.")
-        for item in reminders:
-            st.write(f"- {item}")
-
-        with st.expander("Future API integration preview", expanded=False):
-            st.json(future_payload)
-            st.caption("This is only a preview of the structure prepared for future reasoning/API implementation.")
+    st.divider()
+    render_history_panel()
 
 
 if __name__ == "__main__":
