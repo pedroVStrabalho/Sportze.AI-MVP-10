@@ -310,8 +310,14 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
     supported_sport = match_supported_sport(sport)
     positions = SPORT_POSITIONS.get(supported_sport, ["General Profile"])
 
+    logged_in = bool(st.session_state.get("profile_email", "").strip())
+    saved_name = normalize_text(str(st.session_state.get("athlete_name", "") or profile.get("athlete_name", "")))
+    is_professional_value = profile.get("is_professional", False)
+    is_professional = bool(is_professional_value is True or str(is_professional_value).strip().lower() in {"yes", "true", "1"})
+    should_ask_name = (not logged_in) and (not saved_name) and is_professional
+
     flow = [
-        {"key": "sport", "prompt": "What sport do you play?", "type": "text"},
+        {"key": "sport", "prompt": "What physical activity/sport do you play?", "type": "text"},
         {
             "key": "sport_type",
             "prompt": "Is this an individual sport or a team sport? You can answer: Individual Sport or Team Sport.",
@@ -322,12 +328,7 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
     ]
 
     if sport_type == "Team Sport":
-        flow.extend([
-            {"key": "team_name", "prompt": "What team do you play for?", "type": "text"},
-            {"key": "athlete_name", "prompt": "Athlete name?", "type": "text"},
-        ])
-    else:
-        flow.append({"key": "athlete_name", "prompt": "Your name?", "type": "text"})
+        flow.append({"key": "team_name", "prompt": "What team do you play for?", "type": "text"})
 
     flow.extend([
         {"key": "goal", "prompt": "What is your main goal?", "type": "select", "options": GOALS},
@@ -348,8 +349,13 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
     ])
 
     if profile.get("level") in ["Advanced", "Elite"]:
-        insert_idx = 6 if sport_type == "Team Sport" else 5
+        insert_idx = 5 if sport_type == "Team Sport" else 4
         flow.insert(insert_idx, {"key": "is_professional", "prompt": "Are you professional in this sport? Answer Yes or No.", "type": "bool"})
+
+    if should_ask_name:
+        name_prompt = "What is your name?"
+        insert_idx = 6 if sport_type == "Team Sport" else 5
+        flow.insert(insert_idx, {"key": "athlete_name", "prompt": name_prompt, "type": "text"})
 
     cleaned_flow = []
     for q in flow:
@@ -380,9 +386,7 @@ def reset_training_chat() -> None:
 def start_training_chat() -> None:
     reset_training_chat()
     st.session_state.training_chat_started = True
-    append_bot_message(
-        "Welcome to the unified Training Generator chat. I will ask your profile and session questions one by one, then I will build your session."
-    )
+    append_bot_message("Lets train today?")
     flow = get_question_flow(st.session_state.training_profile)
     if flow:
         append_bot_message(flow[0]["prompt"])
