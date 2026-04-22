@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import streamlit as st
 
-from training_generator_section_new import render_training_generator_section
+from training_generator_section import render_training_generator_section
 from video_review_section import render_video_review_section
 from physio_section import render_physio_section
 from counseling_section import render_counseling_section
@@ -75,9 +75,6 @@ USERS_DIR = DATA_DIR / "users"
 USERS_DIR.mkdir(exist_ok=True)
 
 
-# -----------------------------------------------------------------------------
-# STATE + STORAGE
-# -----------------------------------------------------------------------------
 def init_state() -> None:
     defaults = {
         "active_section": "Training Generator",
@@ -207,9 +204,6 @@ def clear_session_profile() -> None:
         st.session_state[key] = value
 
 
-# -----------------------------------------------------------------------------
-# UI HELPERS
-# -----------------------------------------------------------------------------
 def section_button(label: str, current: str) -> None:
     button_type = "primary" if current == label else "secondary"
     button_key = f"topnav_{label.lower().replace(' ', '_')}"
@@ -323,9 +317,6 @@ def persist_if_logged_in() -> None:
         save_user_profile()
 
 
-# -----------------------------------------------------------------------------
-# SECTION RENDERERS
-# -----------------------------------------------------------------------------
 def render_training_page() -> None:
     render_training_generator_section(on_persist=persist_if_logged_in)
 
@@ -342,9 +333,6 @@ def render_physio_page() -> None:
     render_physio_section()
 
 
-# -----------------------------------------------------------------------------
-# APP
-# -----------------------------------------------------------------------------
 def main() -> None:
     init_state()
     render_sidebar()
