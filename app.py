@@ -70,11 +70,12 @@ SECTIONS = [
     "Physio",
 ]
 
-SECTION_ICONS = {
-    "Training Generator",
-    "Video Review",
-    "Counseling",
-    "Physio",
+# No emojis in module labels. Keep this as a dict so .get() is always safe.
+SECTION_ICONS: Dict[str, str] = {
+    "Training Generator": "",
+    "Video Review": "",
+    "Counseling": "",
+    "Physio": "",
 }
 
 SECTION_ROUTES = {
@@ -996,8 +997,9 @@ def render_top_navigation() -> None:
 
     cols = st.columns(len(SECTIONS))
     for idx, section in enumerate(SECTIONS):
-        icon = SECTION_ICONS.get(section, "")
-        label = f"{icon} {section}"
+        icons = SECTION_ICONS if isinstance(SECTION_ICONS, dict) else {}
+        icon = icons.get(section, "")
+        label = f"{icon} {section}".strip()
         button_type = "primary" if current == section else "secondary"
         with cols[idx]:
             if st.button(label, use_container_width=True, type=button_type, key=f"topnav_{SECTION_ROUTES[section]}"):
