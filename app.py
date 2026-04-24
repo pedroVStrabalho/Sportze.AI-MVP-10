@@ -71,10 +71,10 @@ SECTIONS = [
 ]
 
 SECTION_ICONS = {
-    "Training Generator": "🏋️",
-    "Video Review": "🎥",
-    "Counseling": "🧭",
-    "Physio": "🩺",
+    "Training Generator",
+    "Video Review",
+    "Counseling",
+    "Physio",
 }
 
 SECTION_ROUTES = {
