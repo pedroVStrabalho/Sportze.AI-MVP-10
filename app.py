@@ -915,7 +915,7 @@ def render_google_login_button() -> None:
             st.code(
                 """527430452650-a1udlafdtn8jp51f8t1jfnq9reknvntb.apps.googleusercontent.com="..."
 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="..."
-GOOGLE_REDIRECT_URI="https://your-render-app.onrender.com"
+GOOGLE_REDIRECT_URI="https://https://sportze-ai-mvp-10.onrender.com"
 AUTH_ALLOW_EMAIL_FALLBACK=true""",
                 language="toml",
             )
