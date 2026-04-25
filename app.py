@@ -89,24 +89,33 @@ ROUTE_TO_SECTION = {value: key for key, value in SECTION_ROUTES.items()}
 
 PLAN_LIMITS = {
     "Free": {
-        "weekly_training_generations": 10,
-        "video_reviews": 0,
-        "physio_sessions": 3,
-        "counseling_sessions": 2,
+        "training_generations_per_day": 5,
+        "physio_sessions_per_day": 3,
+        "video_reviews_per_day": 0,
+        "counseling_sessions_per_day": 9999,
     },
     "Plus": {
-        "weekly_training_generations": 999,
-        "video_reviews": 2,
-        "physio_sessions": 999,
-        "counseling_sessions": 20,
+        "training_generations_per_day": 9999,
+        "physio_sessions_per_day": 10,
+        "video_reviews_per_day": 1,
+        "counseling_sessions_per_day": 9999,
     },
     "Pro": {
-        "weekly_training_generations": 9999,
-        "video_reviews": 9999,
-        "physio_sessions": 9999,
-        "counseling_sessions": 9999,
+        "training_generations_per_day": 9999,
+        "physio_sessions_per_day": 9999,
+        "video_reviews_per_day": 9999,
+        "counseling_sessions_per_day": 9999,
     },
 }
+
+PLAN_LIMIT_LABELS = {
+    "training_generations_per_day": "training generations/day",
+    "physio_sessions_per_day": "physio sections/day",
+    "video_reviews_per_day": "video reviews/day",
+    "counseling_sessions_per_day": "counseling sessions/day",
+}
+
+UNLIMITED_LIMIT = 9999
 
 KNOWN_TEAM_SPORTS = {
     "soccer",
@@ -174,7 +183,7 @@ for _path in [DATA_DIR, USERS_DIR, AUDIT_DIR]:
 # =============================================================================
 st.set_page_config(
     page_title=APP_TITLE,
-    page_icon="⚡",
+    page_icon="S",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -370,6 +379,16 @@ def init_state() -> None:
             "physio_sessions": 0,
             "counseling_sessions": 0,
         },
+        "daily_usage": {
+            "date": datetime.now(timezone.utc).date().isoformat(),
+            "training_generations": 0,
+            "video_reviews": 0,
+            "physio_sessions": 0,
+            "counseling_sessions": 0,
+        },
+        "active_visit_counter": 0,
+        "section_visit_counted": {},
+        "last_counted_training_signature": "",
         "last_saved_at": "",
         "ui_compact_mode": True,
         "show_local_email_login": False,
@@ -426,6 +445,8 @@ def build_user_payload() -> Dict[str, Any]:
         "saved_training_sessions": st.session_state.get("saved_training_sessions", []),
         "user_training_logs": st.session_state.get("user_training_logs", []),
         "usage_counters": st.session_state.get("usage_counters", {}),
+        "daily_usage": st.session_state.get("daily_usage", {}),
+        "last_counted_training_signature": st.session_state.get("last_counted_training_signature", ""),
         "training_profile": st.session_state.get("training_profile", {}),
     }
 
@@ -447,6 +468,8 @@ def apply_user_payload(payload: Dict[str, Any]) -> None:
         "saved_training_sessions",
         "user_training_logs",
         "usage_counters",
+        "daily_usage",
+        "last_counted_training_signature",
         "training_profile",
     ]
     for key in allowed:
@@ -846,6 +869,32 @@ def inject_css() -> None:
     .sportze-hidden {
         display: none !important;
     }
+
+    .sportze-main-hero {
+        margin-top: 2.0rem;
+        margin-bottom: 1.8rem;
+    }
+
+    .sportze-main-hero h1 {
+        font-size: clamp(3.2rem, 7vw, 5.2rem);
+        line-height: 0.95;
+        letter-spacing: -0.065em;
+        margin: 0 0 0.55rem 0;
+        font-weight: 900;
+    }
+
+    .sportze-main-hero h2 {
+        font-size: clamp(1.25rem, 2.4vw, 1.95rem);
+        line-height: 1.18;
+        margin: 0;
+        font-weight: 750;
+        letter-spacing: -0.025em;
+    }
+
+    .sportze-topbar-row {
+        margin-bottom: 1.2rem;
+    }
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -864,8 +913,8 @@ def render_google_login_button() -> None:
         st.warning("Google login is not configured yet.")
         with st.expander("Google login setup needed", expanded=False):
             st.code(
-                """GOOGLE_CLIENT_ID="..."
-GOOGLE_CLIENT_SECRET="..."
+                """527430452650-a1udlafdtn8jp51f8t1jfnq9reknvntb.apps.googleusercontent.com="..."
+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="..."
 GOOGLE_REDIRECT_URI="https://your-render-app.onrender.com"
 AUTH_ALLOW_EMAIL_FALLBACK=true""",
                 language="toml",
@@ -987,7 +1036,11 @@ def render_topbar() -> None:
 def set_active_section(section: str) -> None:
     if section not in SECTIONS:
         section = DEFAULT_SECTION
+    previous = st.session_state.get("active_section", DEFAULT_SECTION)
     st.session_state.active_section = section
+    if previous != section:
+        st.session_state.active_visit_counter = int(st.session_state.get("active_visit_counter", 0) or 0) + 1
+        st.session_state.section_visit_counted = {}
     set_query_route(section)
     add_audit_event("section_changed", {"section": section})
 
@@ -1008,42 +1061,92 @@ def render_top_navigation() -> None:
 
 
 # =============================================================================
-# PAGE TITLES
+# HERO / PAGE TITLE
 # =============================================================================
-def render_page_title() -> None:
-    section = st.session_state.get("active_section", DEFAULT_SECTION)
-    if section == "Training Generator":
-        st.markdown(
-            """
-<div class="sportze-page-title">
-    <h1>Training Generator</h1>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
+def render_default_training_hero() -> None:
+    """
+    Default opening view requested by the user.
+    The actual module title comes from the Training Generator module itself, so
+    this hero avoids duplicating the section title.
+    """
+    if st.session_state.get("active_section", DEFAULT_SECTION) != "Training Generator":
         return
 
-    title = section
-    subtitle = {
-        "Video Review": "Upload or review technique with performance-aware feedback.",
-        "Counseling": "Make better sport pathway, tournament, and opportunity decisions.",
-        "Physio": "Pain triage and training-aware support guidance.",
-    }.get(section, "")
-
     st.markdown(
-        f"""
-<div class="sportze-page-title">
-    <h1>{title}</h1>
-    <p>{subtitle}</p>
+        """
+<div class="sportze-main-hero">
+    <h1>Sportze.AI</h1>
+    <h2>Your intelligent personal trainer/coach for any sport in the world</h2>
 </div>
         """,
         unsafe_allow_html=True,
     )
 
 
+def should_suppress_module_text(value: Any) -> bool:
+    """Remove old explanatory homepage text without touching module files."""
+    if not isinstance(value, str):
+        return False
+    cleaned = value.strip().lower()
+    blocked_fragments = [
+        "this section now starts as the default interface",
+        "it unites the old homepage profile collection",
+        "for non-cataloged sports, the chat still works",
+        "future api can interpret those sports dynamically",
+    ]
+    return any(fragment in cleaned for fragment in blocked_fragments)
+
+
+class SuppressOldTrainingCopy:
+    """
+    Context manager that suppresses only the old text the user asked to remove.
+    It does not interfere with the actual chat, buttons, or generated plans.
+    """
+
+    def __enter__(self):
+        self._old_write = st.write
+        self._old_markdown = st.markdown
+
+        def filtered_write(*args, **kwargs):
+            if len(args) == 1 and should_suppress_module_text(args[0]):
+                return None
+            return self._old_write(*args, **kwargs)
+
+        def filtered_markdown(body, *args, **kwargs):
+            if should_suppress_module_text(body):
+                return None
+            return self._old_markdown(body, *args, **kwargs)
+
+        st.write = filtered_write
+        st.markdown = filtered_markdown
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        st.write = self._old_write
+        st.markdown = self._old_markdown
+        return False
+
+
 # =============================================================================
 # USAGE / PLAN HELPERS
 # =============================================================================
+def today_key() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def reset_daily_usage_if_needed() -> None:
+    usage = st.session_state.get("daily_usage", {})
+    if not isinstance(usage, dict) or usage.get("date") != today_key():
+        st.session_state.daily_usage = {
+            "date": today_key(),
+            "training_generations": 0,
+            "video_reviews": 0,
+            "physio_sessions": 0,
+            "counseling_sessions": 0,
+        }
+        st.session_state.section_visit_counted = {}
+
+
 def get_plan() -> str:
     plan = st.session_state.get("selected_plan", "Pro")
     if plan not in PLAN_LIMITS:
@@ -1051,17 +1154,113 @@ def get_plan() -> str:
     return plan
 
 
+def get_plan_limit(limit_name: str) -> int:
+    return int(PLAN_LIMITS.get(get_plan(), PLAN_LIMITS["Pro"]).get(limit_name, UNLIMITED_LIMIT))
+
+
+def get_daily_used(counter_name: str) -> int:
+    reset_daily_usage_if_needed()
+    usage = st.session_state.get("daily_usage", {})
+    return int(usage.get(counter_name, 0) or 0)
+
+
 def increment_usage(counter_name: str) -> None:
+    reset_daily_usage_if_needed()
+
+    daily = st.session_state.get("daily_usage", {})
+    daily[counter_name] = int(daily.get(counter_name, 0) or 0) + 1
+    daily["date"] = today_key()
+    st.session_state.daily_usage = daily
+
     counters = st.session_state.get("usage_counters", {})
     counters[counter_name] = int(counters.get(counter_name, 0) or 0) + 1
     st.session_state.usage_counters = counters
 
+    add_audit_event("usage_incremented", {"counter": counter_name, "daily_used": daily[counter_name], "plan": get_plan()})
+
 
 def can_use(counter_name: str, limit_name: str) -> bool:
-    plan = get_plan()
-    limit = PLAN_LIMITS.get(plan, PLAN_LIMITS["Pro"]).get(limit_name, 9999)
-    used = int(st.session_state.get("usage_counters", {}).get(counter_name, 0) or 0)
-    return used < limit
+    return get_daily_used(counter_name) < get_plan_limit(limit_name)
+
+
+def usage_text(counter_name: str, limit_name: str) -> str:
+    used = get_daily_used(counter_name)
+    limit = get_plan_limit(limit_name)
+    label = PLAN_LIMIT_LABELS.get(limit_name, limit_name)
+    if limit >= UNLIMITED_LIMIT:
+        return f"{label}: unlimited"
+    return f"{label}: {used}/{limit} used today"
+
+
+def render_limit_reached(counter_name: str, limit_name: str, module_name: str) -> None:
+    used = get_daily_used(counter_name)
+    limit = get_plan_limit(limit_name)
+    st.warning(f"{module_name} limit reached for the {get_plan()} plan: {used}/{limit} today.")
+    st.caption("Because monetization is not active yet, you can change the Plan dropdown at the top-right to test another tier.")
+
+
+def render_usage_caption(counter_name: str, limit_name: str) -> None:
+    text = usage_text(counter_name, limit_name)
+    st.caption(text)
+
+
+def count_section_visit_once(counter_name: str, limit_name: str, module_key: str, module_name: str) -> bool:
+    """
+    Counts a module use once per visit, not on every Streamlit rerun.
+    Used for Physio and Video Review until those modules expose explicit callbacks.
+    """
+    reset_daily_usage_if_needed()
+    visit_id = int(st.session_state.get("active_visit_counter", 0) or 0)
+    counted = st.session_state.get("section_visit_counted", {})
+    if not isinstance(counted, dict):
+        counted = {}
+
+    visit_key = f"{module_key}:{visit_id}:{today_key()}"
+    if counted.get(visit_key):
+        return True
+
+    if not can_use(counter_name, limit_name):
+        render_limit_reached(counter_name, limit_name, module_name)
+        return False
+
+    increment_usage(counter_name)
+    counted[visit_key] = True
+    st.session_state.section_visit_counted = counted
+    return True
+
+
+def training_generation_signature() -> str:
+    latest_summary = st.session_state.get("latest_training_summary")
+    latest_payload = st.session_state.get("latest_training_payload")
+    saved_sessions = st.session_state.get("saved_training_sessions", [])
+    raw = json.dumps(
+        {
+            "summary": latest_summary,
+            "payload": latest_payload,
+            "saved_count": len(saved_sessions) if isinstance(saved_sessions, list) else 0,
+        },
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def maybe_count_training_generation(before_signature: str) -> None:
+    after_signature = training_generation_signature()
+    last_counted = st.session_state.get("last_counted_training_signature", "")
+
+    latest_exists = bool(st.session_state.get("latest_training_summary") or st.session_state.get("latest_training_payload"))
+    if not latest_exists:
+        return
+
+    if after_signature == before_signature:
+        return
+
+    if after_signature == last_counted:
+        return
+
+    increment_usage("training_generations")
+    st.session_state.last_counted_training_signature = after_signature
 
 
 def render_plan_popover() -> None:
@@ -1070,33 +1269,60 @@ def render_plan_popover() -> None:
         current = get_plan()
         selected = st.selectbox("Plan view", plans, index=plans.index(current), key="top_plan_select")
         st.session_state.selected_plan = selected
+        reset_daily_usage_if_needed()
+
+        st.caption("MVP plan preview. You can switch manually until monetization is connected.")
+
         limits = PLAN_LIMITS[selected]
-        st.caption("MVP plan preview")
-        st.json(limits)
+        st.markdown("**Daily limits**")
+        for limit_name, value in limits.items():
+            label = PLAN_LIMIT_LABELS.get(limit_name, limit_name)
+            shown = "Unlimited" if int(value) >= UNLIMITED_LIMIT else str(value)
+            st.write(f"- {label}: {shown}")
+
+        st.markdown("**Used today**")
+        st.write(f"- Training generations: {get_daily_used('training_generations')}")
+        st.write(f"- Physio sections: {get_daily_used('physio_sessions')}")
+        st.write(f"- Video reviews: {get_daily_used('video_reviews')}")
 
 
 # =============================================================================
 # MODULE RENDERERS
 # =============================================================================
 def render_training_page() -> None:
-    # The Training Generator module is expected to render the chat immediately.
-    # The old homepage copy has intentionally been removed from this app shell.
-    try:
-        render_training_generator_section(on_persist=persist_if_logged_in)
-    except TypeError:
-        # Backward compatibility if an older module version does not accept on_persist.
-        render_training_generator_section()
+    render_usage_caption("training_generations", "training_generations_per_day")
+    if not can_use("training_generations", "training_generations_per_day"):
+        render_limit_reached("training_generations", "training_generations_per_day", "Training Generator")
+        return
+
+    before_signature = training_generation_signature()
+    with SuppressOldTrainingCopy():
+        try:
+            render_training_generator_section(on_persist=persist_if_logged_in)
+        except TypeError:
+            render_training_generator_section()
+    maybe_count_training_generation(before_signature)
 
 
 def render_video_page() -> None:
+    render_usage_caption("video_reviews", "video_reviews_per_day")
+    if not count_section_visit_once("video_reviews", "video_reviews_per_day", "video", "Video Review"):
+        return
     render_video_review_section()
 
 
 def render_counseling_page() -> None:
-    render_counseling_section()
+    # Counseling is intentionally generous while the product is still pre-monetization.
+    if can_use("counseling_sessions", "counseling_sessions_per_day"):
+        render_counseling_section()
+    else:
+        render_limit_reached("counseling_sessions", "counseling_sessions_per_day", "Counseling")
 
 
 def render_physio_page() -> None:
+    render_usage_caption("physio_sessions", "physio_sessions_per_day")
+    if not count_section_visit_once("physio_sessions", "physio_sessions_per_day", "physio", "Physio"):
+        return
     render_physio_section()
 
 
@@ -1193,6 +1419,7 @@ def render_auth_status_message() -> None:
 # =============================================================================
 def main() -> None:
     init_state()
+    reset_daily_usage_if_needed()
     inject_css()
     process_google_oauth_callback()
     expose_profile_for_modules()
@@ -1204,7 +1431,7 @@ def main() -> None:
     with extra_right:
         render_plan_popover()
 
-    render_page_title()
+    render_default_training_hero()
     render_auth_status_message()
 
     render_active_section()
