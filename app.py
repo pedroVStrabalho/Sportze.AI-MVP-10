@@ -913,9 +913,9 @@ def render_google_login_button() -> None:
         st.warning("Google login is not configured yet.")
         with st.expander("Google login setup needed", expanded=False):
             st.code(
-                """527430452650-a1udlafdtn8jp51f8t1jfnq9reknvntb.apps.googleusercontent.com="
-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="
-GOOGLE_REDIRECT_URI="https://sportze-ai-mvp-10.onrender.com"
+                """527430452650-a1udlafdtn8jp51f8t1jfnq9reknvntb.apps.googleusercontent.com
+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
+https://sportze-ai-mvp-10.onrender.com
 AUTH_ALLOW_EMAIL_FALLBACK=true""",
                 language="toml",
             )
