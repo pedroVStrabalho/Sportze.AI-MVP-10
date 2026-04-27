@@ -372,12 +372,25 @@ def match_option_forgiving(answer: str, options: List[str]) -> Optional[str]:
     return None
 
 
+def is_competitive_level(level: object) -> bool:
+    return str(level).strip() in {"Advanced", "Elite", "Experienced"}
+
+
+def is_short_yes_answer(value: object) -> bool:
+    return canonical_compact(str(value)) in {canonical_compact(x) for x in COMMON_BOOL_YES}
+
+
+def is_short_no_answer(value: object) -> bool:
+    return canonical_compact(str(value)) in {canonical_compact(x) for x in COMMON_BOOL_NO} | {"none", "nothing", "no notes", "n/a", "na"}
+
+
 def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
     sport = profile.get("sport", "")
     sport_type = profile.get("sport_type", "") or detect_sport_type(sport)
     supported_sport = match_supported_sport(sport)
     gym_mode = bool(supported_sport == "Gym" or is_gym_sport(sport))
-    positions = SPORT_POSITIONS.get(supported_sport, ["General Profile"])
+    level = str(profile.get("level", ""))
+    competitive_level = is_competitive_level(level)
 
     logged_in = bool(st.session_state.get("profile_email", "").strip())
     saved_name = normalize_text(str(st.session_state.get("athlete_name", "") or profile.get("athlete_name", "")))
@@ -401,31 +414,37 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
             {"key": "session_type", "prompt": "What kind of gym session do you want today?", "type": "select", "options": GYM_SESSION_TYPES},
             {"key": "duration", "prompt": "How many minutes should this gym session last?", "type": "int", "min": 30, "max": 180},
             {"key": "equipment_level", "prompt": "What is your level of equipment available?", "type": "select", "options": EQUIPMENT_LEVELS},
-            {"key": "readiness", "prompt": "How is your readiness today?", "type": "select", "options": READINESS_OPTIONS},
             {"key": "pain_flag", "prompt": "Is there pain or discomfort today? Answer Yes or No.", "type": "bool"},
-            {"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"},
-            {"key": "notes", "prompt": "Any extra notes? If not, answer: none.", "type": "text"},
         ])
     else:
         flow.extend([
             {"key": "goal", "prompt": "What is your main goal?", "type": "select", "options": GOALS},
             {"key": "level", "prompt": "What is your current level?", "type": "select", "options": LEVELS},
             {"key": "weekly_target", "prompt": get_frequency_prompt(profile.get("goal", ""), profile.get("level", ""), sport), "type": "int", "min": 1, "max": 7},
-            {"key": "position", "prompt": "What is your position or role in this sport?", "type": "select_or_text", "options": positions},
             {"key": "session_type", "prompt": "What kind of session do you want today?", "type": "select", "options": SESSION_TYPES},
             {"key": "duration", "prompt": "How many minutes should this session last?", "type": "int", "min": 30, "max": 180},
             {"key": "equipment_level", "prompt": "What is your level of equipment available?", "type": "select", "options": EQUIPMENT_LEVELS},
-            {"key": "season_phase", "prompt": "What season phase are you in?", "type": "select", "options": SEASON_PHASES},
-            {"key": "primary_focus", "prompt": "What is the main focus for today?", "type": "select", "options": PRIMARY_FOCUS_OPTIONS},
-            {"key": "readiness", "prompt": "How is your readiness today?", "type": "select", "options": READINESS_OPTIONS},
-            {"key": "intensity_mode", "prompt": "What intensity mode do you want today?", "type": "select", "options": INTENSITY_MODES},
-            {"key": "pain_flag", "prompt": "Is there pain or discomfort today? Answer Yes or No.", "type": "bool"},
-            {"key": "competition_soon", "prompt": "Do you have a competition or match in the next 3 days? Answer Yes or No.", "type": "bool"},
-            {"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"},
-            {"key": "notes", "prompt": "Any extra notes? If not, answer: none.", "type": "text"},
+        ])
+        if competitive_level:
+            flow.append({"key": "season_phase", "prompt": "What season phase are you in?", "type": "select", "options": SEASON_PHASES})
+        flow.append({"key": "pain_flag", "prompt": "Is there pain or discomfort today? Answer Yes or No.", "type": "bool"})
+
+    if bool(profile.get("pain_flag", False)):
+        flow.extend([
+            {"key": "pain_location", "prompt": "Where does it hurt?", "type": "text"},
+            {"key": "pain_scale", "prompt": "On a scale from 1 to 10, how much does it hurt?", "type": "int", "min": 1, "max": 10},
         ])
 
-    if (not gym_mode) and profile.get("level") in ["Advanced", "Elite"]:
+    flow.append({"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"})
+
+    if competitive_level and not gym_mode:
+        flow.append({"key": "competition_soon", "prompt": "Do you have a competition or match in the next 3 days? Answer Yes or No.", "type": "bool"})
+
+    flow.append({"key": "notes", "prompt": "Any extra notes?", "type": "text"})
+    if bool(profile.get("notes_pending", False)):
+        flow.append({"key": "notes_detail", "prompt": "What notes?", "type": "text"})
+
+    if (not gym_mode) and competitive_level:
         insert_idx = 5 if sport_type == "Team Sport" else 4
         flow.insert(insert_idx, {"key": "is_professional", "prompt": "Are you professional in this sport? Answer Yes or No.", "type": "bool"})
 
@@ -435,12 +454,15 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
         flow.insert(insert_idx, {"key": "athlete_name", "prompt": name_prompt, "type": "text"})
 
     cleaned_flow = []
+    seen_keys = set()
     for q in flow:
         if q.get("key") == "sport_type" and q.get("skip_if_detected") and detect_sport_type(profile.get("sport", "")):
             continue
+        if q.get("key") in seen_keys:
+            continue
+        seen_keys.add(q.get("key"))
         cleaned_flow.append(q)
     return cleaned_flow
-
 
 def append_bot_message(text: str) -> None:
     st.session_state.generator_chat_messages.append({"role": "assistant", "content": text})
@@ -513,6 +535,27 @@ def validate_answer(question: Dict[str, object], raw_answer: str) -> Tuple[bool,
 
 
 def update_profile_from_answer(key: str, value: object) -> None:
+    if key == "notes":
+        if is_short_no_answer(value):
+            st.session_state.training_profile["notes"] = ""
+            st.session_state.training_profile["notes_pending"] = False
+            st.session_state.home_notes = ""
+            return
+        if is_short_yes_answer(value):
+            st.session_state.training_profile["notes"] = ""
+            st.session_state.training_profile["notes_pending"] = True
+            return
+        st.session_state.training_profile["notes"] = str(value).strip()
+        st.session_state.training_profile["notes_pending"] = False
+        st.session_state.home_notes = str(value).strip()
+        return
+
+    if key == "notes_detail":
+        st.session_state.training_profile["notes"] = "" if is_short_no_answer(value) else str(value).strip()
+        st.session_state.training_profile["notes_pending"] = False
+        st.session_state.home_notes = st.session_state.training_profile["notes"]
+        return
+
     st.session_state.training_profile[key] = value
 
     if key == "sport":
@@ -531,13 +574,14 @@ def update_profile_from_answer(key: str, value: object) -> None:
         st.session_state.team_name = value
     if key == "weekly_target":
         st.session_state.weekly_target = value
-    if key == "notes":
-        st.session_state.home_notes = "" if str(value).lower() == "none" else str(value)
     if key == "sport_type":
         st.session_state.sport_type = value
     if key == "is_professional":
         st.session_state.is_professional = "Yes" if value else "No"
-
+    if key == "pain_location":
+        st.session_state.pain_location = value
+    if key == "pain_scale":
+        st.session_state.pain_scale = value
 
 def handle_chat_reply(user_text: str) -> None:
     flow = get_question_flow(st.session_state.training_profile)
@@ -675,6 +719,42 @@ def allocate_block_minutes(session: List[Exercise], duration: int, session_type:
     return minutes
 
 
+def infer_primary_focus(goal: str, session_type: str, sport: str) -> str:
+    if match_supported_sport(sport) == "Gym" or is_gym_sport(sport):
+        if goal == "Hypertrophy":
+            return "Strength"
+        if goal == "Fat Loss":
+            return "Conditioning"
+        if goal == "Athletic Performance":
+            return "Power"
+        return "Movement Quality"
+    if session_type == "Technical Priority":
+        return "Technical Quality"
+    if session_type == "Physical Priority":
+        return "Conditioning"
+    if goal == "Injury prevention":
+        return "Movement Quality"
+    if goal == "Build fitness":
+        return "Conditioning"
+    if goal == "Competition preparation":
+        return "Match Rhythm"
+    return "Technical Quality"
+
+
+def pain_adjustment_minutes(pain_scale: object) -> int:
+    try:
+        score = int(pain_scale)
+    except Exception:
+        return 5
+    if score >= 8:
+        return 15
+    if score >= 5:
+        return 10
+    if score >= 1:
+        return 5
+    return 0
+
+
 def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int], Dict[str, object]]:
     raw_sport = str(profile.get("sport", "")).strip()
     supported_sport = match_supported_sport(raw_sport)
@@ -682,25 +762,25 @@ def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int]
     library = SPORT_LIBRARY.get(supported_sport, DEFAULT_GENERAL_LIBRARY)
 
     session_type = str(profile.get("session_type", "Balanced Session"))
+    requested_session_type = session_type
     if session_type == "Intense Session":
         session_type = "Physical Priority"
     duration = int(profile.get("duration", 75))
-    readiness = str(profile.get("readiness", "Moderate"))
     goal = str(profile.get("goal", "Improve performance"))
     level = str(profile.get("level", "Intermediate"))
     if level == "Experienced":
         level = "Advanced"
-    season_phase = str(profile.get("season_phase", "All" if supported_sport == "Gym" else "In-Season"))
-    primary_focus = str(profile.get("primary_focus", "Strength" if supported_sport == "Gym" else "Technical Quality"))
-    position = str(profile.get("position", profile.get("goal", "General Fitness") if supported_sport == "Gym" else "General Profile"))
+    season_phase = str(profile.get("season_phase", "All" if supported_sport == "Gym" else "General Training"))
+    primary_focus = infer_primary_focus(goal, session_type, raw_sport)
+    position = str(profile.get("goal", "General Fitness") if supported_sport == "Gym" else "General Profile")
 
-    adjusted_duration = adjust_duration_for_readiness(duration, readiness, goal, session_type)
-    if bool(profile.get("competition_soon", False)):
+    adjusted_duration = duration
+    if bool(profile.get("competition_soon", False)) and is_competitive_level(level):
         adjusted_duration = min(adjusted_duration, duration)
         if session_type == "Physical Priority":
             session_type = "Competition Week"
     if bool(profile.get("pain_flag", False)) or bool(profile.get("needs_low_impact", False)):
-        adjusted_duration = max(30, adjusted_duration - 5)
+        adjusted_duration = max(30, adjusted_duration - pain_adjustment_minutes(profile.get("pain_scale", 3)))
 
     blueprint = get_blueprint(supported_sport or "default", session_type)
     blueprint = trim_blueprint_to_target(blueprint, target_exercise_count(supported_sport or "default", adjusted_duration))
@@ -724,12 +804,14 @@ def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int]
         "supported_sport": supported_sport,
         "sport_for_engine": sport_for_engine,
         "adjusted_duration": adjusted_duration,
-        "session_type": session_type,
+        "session_type": requested_session_type if requested_session_type == "Intense Session" else session_type,
+        "engine_session_type": session_type,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "gym_summary_enabled": bool(supported_sport == "Gym"),
+        "primary_focus_inferred": primary_focus,
+        "season_phase_used": season_phase,
     }
     return session, block_minutes, meta
-
 
 def build_session_title(profile: Dict[str, object]) -> str:
     athlete = str(profile.get("athlete_name", "Athlete")).strip() or "Athlete"
@@ -743,44 +825,81 @@ def build_session_hash(profile: Dict[str, object], session: List[Exercise]) -> s
     return hashlib.md5(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def estimate_session_load(level: str, readiness: str, intensity_mode: str, duration: int) -> str:
+def estimate_session_load(level: str, duration: int, pain_flag: bool = False, low_impact: bool = False) -> str:
     score = 0
-    score += {"Beginner": 1, "Intermediate": 2, "Advanced": 3, "Elite": 4}.get(level, 2)
-    score += {"Low": 0, "Moderate": 1, "High": 2}.get(readiness, 1)
-    score += {"Controlled": 0, "Standard": 1, "High": 2, "Peak": 3}.get(intensity_mode, 1)
+    score += {"Beginner": 1, "Intermediate": 2, "Advanced": 3, "Experienced": 3, "Elite": 4}.get(level, 2)
     score += 1 if duration >= 75 else 0
     score += 1 if duration >= 105 else 0
-    if score <= 3:
+    if pain_flag or low_impact:
+        score = max(0, score - 1)
+    if score <= 2:
         return "Low to Moderate"
-    if score <= 6:
+    if score <= 4:
         return "Moderate"
-    if score <= 8:
+    if score <= 5:
         return "Moderate to High"
     return "High"
 
+def extract_planned_reps_from_prescription(prescription: str, goal: str) -> int:
+    text = prescription.lower()
+    ranges = re.findall(r"(\d+)\s*[-–]\s*(\d+)\s*reps", text)
+    if ranges:
+        low, high = map(int, ranges[0])
+        if goal == "Hypertrophy":
+            return min(high, max(low, 10))
+        if goal == "Fat Loss":
+            return min(high, max(low, 12))
+        if goal == "Athletic Performance":
+            return min(high, max(low, 6))
+        return round((low + high) / 2)
+    single = re.findall(r"(\d+)\s*reps", text)
+    if single:
+        return int(single[0])
+    if "interval" in text or "conditioning" in text:
+        return 8
+    if "cooldown" in text or "mobility" in text or "warm" in text:
+        return 6
+    return 10
+
+
+def gym_exact_prescription(ex: Exercise, goal: str) -> Tuple[str, int, int]:
+    # Gym mode deliberately uses an exact 3-set prescription for every block so the summary logger
+    # can pre-fill a clear planned target and compare what the athlete actually completed.
+    planned_sets = 3
+    planned_reps = extract_planned_reps_from_prescription(ex.prescription, goal)
+    prescription = f"Do {planned_sets} sets of {planned_reps} reps. {ex.prescription}"
+    return prescription, planned_sets, planned_reps
 
 def build_session_payload(profile: Dict[str, object], session: List[Exercise], block_minutes: List[int], meta: Dict[str, object]) -> Dict[str, object]:
     safe_profile = dict(profile)
     safe_profile["generated_at"] = meta["generated_at"]
+    is_gym = bool(meta.get("gym_summary_enabled", False))
+    goal = str(profile.get("goal", "General Fitness"))
+    exercise_rows = []
+    for ex, minutes in zip(session, block_minutes):
+        prescription = ex.prescription
+        planned_sets = None
+        planned_reps = None
+        if is_gym:
+            prescription, planned_sets, planned_reps = gym_exact_prescription(ex, goal)
+        exercise_rows.append({
+            "name": ex.name,
+            "category": ex.category,
+            "prescription": prescription,
+            "purpose": ex.purpose,
+            "coaching_points": ex.coaching_points,
+            "planned_block_minutes": minutes,
+            "planned_sets": planned_sets,
+            "planned_reps": planned_reps,
+        })
     payload = {
         "session_id": build_session_hash(safe_profile, session),
         "title": build_session_title(profile),
         "profile": safe_profile,
         "meta": meta,
-        "exercises": [
-            {
-                "name": ex.name,
-                "category": ex.category,
-                "prescription": ex.prescription,
-                "purpose": ex.purpose,
-                "coaching_points": ex.coaching_points,
-                "planned_block_minutes": minutes,
-            }
-            for ex, minutes in zip(session, block_minutes)
-        ],
+        "exercises": exercise_rows,
     }
     return payload
-
 
 def persist_generated_session(payload: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
     saved = st.session_state.get("saved_training_sessions", [])
@@ -813,7 +932,7 @@ def initialize_summary_state(session_id: str, exercises: List[Dict[str, object]]
     key = f"training_summary_{session_id}"
     if key not in st.session_state:
         st.session_state[key] = {
-            ex["name"]: {"done": True, "reps": None, "weight": None}
+            ex["name"]: {"done": True, "reps": ex.get("planned_reps"), "sets": ex.get("planned_sets"), "weight": None}
             for ex in exercises
         }
 
@@ -952,30 +1071,38 @@ def render_current_session(payload: Dict[str, object]) -> None:
     profile = payload["profile"]
     meta = payload["meta"]
     exercises = payload["exercises"]
-    intensity_mode = str(profile.get("intensity_mode", "Standard"))
 
     st.subheader(payload["title"])
-    st.write(
-        f"**Sport:** {profile.get('sport')} | **Position/Profile:** {profile.get('position')} | **Goal:** {profile.get('goal')} | "
-        f"**Level:** {profile.get('level')} | **Weekly frequency:** {profile.get('weekly_target')} | "
-        f"**Planned duration:** {meta.get('adjusted_duration')} min"
-    )
-    st.caption(
-        f"Session type: {meta.get('session_type')} | Equipment: {profile.get('equipment_level')} | "
-        f"Season phase: {profile.get('season_phase')} | Focus: {profile.get('primary_focus')}"
-    )
+    profile_bits = [
+        f"**Sport:** {profile.get('sport')}",
+        f"**Goal:** {profile.get('goal')}",
+        f"**Level:** {profile.get('level')}",
+        f"**Weekly frequency:** {profile.get('weekly_target')}",
+        f"**Planned duration:** {meta.get('adjusted_duration')} min",
+    ]
+    if profile.get("team_name"):
+        profile_bits.insert(1, f"**Team:** {profile.get('team_name')}")
+    st.write(" | ".join(profile_bits))
+
+    caption_bits = [f"Session type: {meta.get('session_type')}", f"Equipment: {profile.get('equipment_level')}"]
+    if profile.get("season_phase"):
+        caption_bits.append(f"Season phase: {profile.get('season_phase')}")
+    if meta.get("primary_focus_inferred"):
+        caption_bits.append(f"Training focus inferred: {meta.get('primary_focus_inferred')}")
+    st.caption(" | ".join(caption_bits))
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Planned minutes", meta.get("adjusted_duration"))
-    c2.metric("Estimated load", estimate_session_load(str(profile.get("level", "Intermediate")), str(profile.get("readiness", "Moderate")), intensity_mode, int(meta.get("adjusted_duration", 75))))
+    c2.metric("Estimated load", estimate_session_load(str(profile.get("level", "Intermediate")), int(meta.get("adjusted_duration", 75)), bool(profile.get("pain_flag")), bool(profile.get("needs_low_impact"))))
     c3.metric("Exercises / blocks", len(exercises))
 
-    st.info(INTENSITY_NOTES.get(intensity_mode, INTENSITY_NOTES["Standard"]))
     notes = str(profile.get("notes", "")).strip()
-    if notes and notes.lower() != "none":
+    if notes:
         st.info(f"Context notes considered: {notes}")
     if bool(profile.get("pain_flag")):
-        st.warning("Pain/discomfort flagged: reduce aggressive loading if symptoms change mechanics or movement quality.")
+        pain_location = str(profile.get("pain_location", "not specified")).strip() or "not specified"
+        pain_scale = str(profile.get("pain_scale", "not specified"))
+        st.warning(f"Pain/discomfort flagged: {pain_location}, pain level {pain_scale}/10. Reduce aggressive loading if symptoms change mechanics or movement quality.")
     if bool(profile.get("competition_soon")):
         st.warning("Competition proximity flagged: the session was kept sharper and less fatigue-heavy.")
 
@@ -984,6 +1111,8 @@ def render_current_session(payload: Dict[str, object]) -> None:
         with st.expander(f"{idx}. {ex['name']}", expanded=idx <= 3):
             st.markdown(f"**Category:** {ex['category']}")
             st.markdown(f"**Prescription:** {ex['prescription']}")
+            if ex.get("planned_sets") and ex.get("planned_reps"):
+                st.markdown(f"**Planned summary target:** {ex['planned_sets']} sets x {ex['planned_reps']} reps")
             st.markdown(f"**Purpose:** {ex['purpose']}")
             st.markdown(f"**Planned block duration:** ~{ex['planned_block_minutes']} minutes")
             coaching_points = ex.get("coaching_points") or []
@@ -991,7 +1120,6 @@ def render_current_session(payload: Dict[str, object]) -> None:
                 st.markdown("**Coaching points:**")
                 for point in coaching_points:
                     st.write(f"- {point}")
-
 
 def render_training_summary_panel(payload: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
     if not is_gym_session(payload):
@@ -1019,7 +1147,7 @@ def render_training_summary_panel(payload: Dict[str, object], on_persist: Option
                 summary_state[ex_name]["done"] = done_value == "Done"
             with c2:
                 reps = st.number_input(
-                    "Number of reps",
+                    "Number of reps completed",
                     min_value=0.0,
                     step=1.0,
                     value=float(summary_state[ex_name]["reps"] or 0),
@@ -3166,6 +3294,41 @@ EXTRA_COMMON_ANSWER_ALIASES = {
     "adv2029": "Advanced",
 }
 COMMON_ANSWER_ALIASES.update(EXTRA_COMMON_ANSWER_ALIASES)
+
+
+# Curated human typing aliases: short slang, spelling errors, Portuguese/English mix, and fast answers.
+CURATED_GRAMMAR_ALIASES = {
+    "perfomance": "Improve performance", "preformance": "Improve performance", "perform": "Improve performance", "better performance": "Improve performance",
+    "improve perf": "Improve performance", "improve my game": "Improve performance", "get better": "Improve performance",
+    "build fit": "Build fitness", "build fitnesss": "Build fitness", "get in shape": "Build fitness", "shape": "Build fitness",
+    "cardio": "Build fitness", "stamina": "Build fitness", "endurance": "Build fitness", "condicionamento": "Build fitness",
+    "back after break": "Return after a break", "after break": "Return after a break", "voltar": "Return after a break", "retorno": "Return after a break",
+    "learn sport": "Learn how to play", "new sport": "Learn how to play", "begin learning": "Learn how to play", "aprender": "Learn how to play",
+    "injury prev": "Injury prevention", "injury prevent": "Injury prevention", "avoid injury": "Injury prevention", "prevent injuries": "Injury prevention",
+    "comp": "Competition preparation", "tournament": "Competition preparation", "game prep": "Competition preparation", "prepare match": "Competition preparation",
+    "hypertrofia": "Hypertrophy", "hipertrofia": "Hypertrophy", "hipertrophy": "Hypertrophy", "gain muscle": "Hypertrophy",
+    "muscle mass": "Hypertrophy", "massa": "Hypertrophy", "massa muscular": "Hypertrophy", "size": "Hypertrophy",
+    "lose weight": "Fat Loss", "loose weight": "Fat Loss", "weightloss": "Fat Loss", "emagrecer": "Fat Loss", "perder gordura": "Fat Loss",
+    "definition": "Fat Loss", "cutting": "Fat Loss", "dry": "Fat Loss", "leaning": "Fat Loss",
+    "ath perf": "Athletic Performance", "explosive": "Athletic Performance", "explosiveness": "Athletic Performance", "sport specific": "Athletic Performance",
+    "general fit": "General Fitness", "healthy": "General Fitness", "health fitness": "General Fitness", "overall": "General Fitness",
+    "beggin": "Beginner", "begginers": "Beginner", "starter": "Beginner", "starting": "Beginner", "iniciante": "Beginner",
+    "intermed": "Intermediate", "mid": "Intermediate", "medio": "Intermediate", "médio": "Intermediate",
+    "advnaced": "Advanced", "avanced": "Advanced", "good": "Advanced", "serious": "Advanced", "avançado": "Advanced",
+    "exp": "Experienced", "experiente": "Experienced", "very experienced": "Experienced",
+    "bal": "Balanced Session", "balanced session": "Balanced Session", "mix": "Balanced Session", "mixed": "Balanced Session",
+    "technique": "Technical Priority", "skills": "Technical Priority", "skill": "Technical Priority", "tecnica": "Technical Priority", "técnica": "Technical Priority",
+    "physic": "Physical Priority", "physical session": "Physical Priority", "conditioning session": "Physical Priority", "fisico": "Physical Priority", "físico": "Physical Priority",
+    "intensive": "Intense Session", "hard session": "Intense Session", "hardcore": "Intense Session", "puxado": "Intense Session", "pesado": "Intense Session",
+    "min": "Minimal", "mínimo": "Minimal", "minimal equipment": "Minimal", "no equipment": "Minimal",
+    "basico": "Basic", "básico": "Basic", "some equipment": "Basic", "normal equipment": "Medium",
+    "medium": "Medium", "med": "Medium", "medio equipment": "Medium", "médio equipment": "Medium",
+    "club": "Competitive", "club level": "Competitive", "competition equipment": "Competitive",
+    "complete": "Elite", "full gym": "Elite", "full equipment": "Elite", "elite equipment": "Elite",
+    "individual": "Individual Sport", "individual sport": "Individual Sport", "alone": "Individual Sport", "solo": "Individual Sport",
+    "team": "Team Sport", "team sport": "Team Sport", "collective": "Team Sport", "time": "Team Sport",
+}
+COMMON_ANSWER_ALIASES.update({canonical_compact(k): v for k, v in CURATED_GRAMMAR_ALIASES.items()})
 
 EXTRA_GYM_EXERCISES = [
     Exercise("Bike ramp-up + joint prep #1", "Warm-Up", "2 easy ramp blocks + hips/shoulders prep", "Prepare joints and breathing for lifting.", ["Bodyweight", "Machine"], ["Low", "Moderate", "High"], ["Movement Quality", "Technical Quality"], ["General Fitness", "Hypertrophy", "Fat Loss", "Athletic Performance", "All"], ["Beginner", "Intermediate", "Advanced", "Experienced", "Elite", "All"], ["All"], 1.0),
