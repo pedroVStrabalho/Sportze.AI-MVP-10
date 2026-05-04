@@ -272,6 +272,525 @@ DEFAULT_BLUEPRINTS = {
 
 
 # -----------------------------------------------------------------------------
+# SPORTZE.AI EXPANDED SPORT CATALOG + SESSION LIBRARY
+# Added from the two Sportze.AI PDFs:
+# - 31 core sport templates with 10 normal sessions + 7 adapted gym sessions each
+# - Sports 32-200 similarity map, so unknown / less common sports can borrow the
+#   closest high-quality template instead of falling back to a generic plan.
+# -----------------------------------------------------------------------------
+CORE_SPORT_TEMPLATE_INFO: Dict[str, str] = {'American Football': 'explosive starts, acceleration, contact strength, position-specific power, repeat efforts',
+ 'Badminton': 'split-step speed, lunging strength, overhead power, repeated rally endurance, agility',
+ 'Baseball': 'rotational power, throwing velocity, sprint speed, hip-shoulder separation, shoulder care',
+ 'Basketball': 'vertical power, deceleration, lateral defense, finishing, repeated high-intensity efforts',
+ 'Boxing': 'footwork, rotational power, shoulder endurance, reaction, repeated high-intensity rounds',
+ 'Cricket': 'rotational power, sprint between wickets, throwing, shoulder resilience, batting reaction',
+ 'Cycling': 'leg endurance, cadence control, aerobic power, hip stability, repeat intervals',
+ 'Esports': 'reaction, focus, posture, hand/wrist durability, cognitive endurance',
+ 'Field Hockey': 'low body position, stick speed, acceleration, repeated sprints, change of direction',
+ 'Fitness Training': 'general fitness, mobility, full-body strength, conditioning',
+ 'Golf': 'rotational power, trunk stability, hip mobility, posture endurance, controlled speed',
+ 'Gymnastics': 'bodyweight strength, mobility, landing control, core tension, shoulder stability',
+ 'Handball': 'jump throw power, shoulder resilience, change of direction, contact balance, sprint repeats',
+ 'Ice Hockey': 'skating power, adductor strength, lateral speed, repeated shifts, trunk rotation',
+ 'Lacrosse': 'sprint speed, stick-handling under fatigue, rotational shooting power, agility',
+ 'MMA': 'hip mobility, grip strength, power endurance, level changes, trunk stiffness',
+ 'Netball': 'landing control, passing speed, short acceleration, court agility, repeat efforts',
+ 'Rowing': 'leg drive, posterior chain strength, aerobic power, rhythm, trunk endurance',
+ 'Rugby': 'collision tolerance, acceleration, repeated sprint ability, grip strength, total-body power',
+ 'Running': 'aerobic base, stride mechanics, elastic strength, threshold capacity, injury resilience',
+ 'Skateboarding': 'balance, landing tolerance, ankle control, reactive strength, rotational control',
+ 'Skiing': 'eccentric leg strength, edge control, trunk stiffness, balance, leg endurance',
+ 'Soccer': 'acceleration, repeated sprints, change of direction, first touch, finishing, aerobic base',
+ 'Softball': 'rotational hitting power, throwing durability, sprint starts, fielding reaction',
+ 'Squash': 'lunge endurance, court speed, racket control, repeated short bursts, hip mobility',
+ 'Surfing': 'paddle endurance, pop-up speed, balance, hip mobility, trunk rotation',
+ 'Swimming': 'pull strength, core control, shoulder endurance, kick power, aerobic capacity',
+ 'Table Tennis': 'reaction speed, footwork, trunk rotation, wrist/forearm control, repeated short bursts',
+ 'Tennis': 'serve power, first-step speed, lateral recovery, rotational strength, repeat point endurance',
+ 'Track & Field': 'speed mechanics, elastic power, event-specific endurance, rhythm, mobility',
+ 'Volleyball': 'jump power, landing control, shoulder durability, approach speed, reaction',
+ 'Water Polo': 'eggbeater strength, swim sprint repeats, shoulder durability, rotational throwing power, contact '
+               'balance',
+ 'Weightlifting': 'maximal strength, bar speed, explosive strength, trunk bracing',
+ 'Wrestling': 'grip strength, neck/trunk strength, hip drive, anaerobic endurance, positional control'}
+
+SPORTZE_NORMAL_SESSION_TEMPLATES: List[Tuple[str, str, List[Tuple[str, str]]]] = [('Technical Base Builder',
+  'Build clean sport skills under low-to-medium fatigue.',
+  [('Dynamic warm-up + movement prep', '8 min'),
+   ('Skill pattern block: fundamentals at smooth speed', '4 x 4 min'),
+   ('Main technical drill with decision cue', '5 x 3 min'),
+   ('Conditioned small-game or rally block', '4 x 5 min'),
+   ('Cooldown + mobility', '6 min')]),
+ ('Speed and First-Step Session',
+  'Improve acceleration, reaction, and first movement quality.',
+  [('Warm-up: skips, mobility, build-ups', '10 min'),
+   ('Reaction starts', '8 x 5-10 sec'),
+   ('Short accelerations', '10 x 10-20 m'),
+   ('Sport-specific chase/recovery drill', '6 x 20 sec'),
+   ('Easy technical reps', '10 min')]),
+ ('Agility and Change-of-Direction Session',
+  'Train braking, re-acceleration, and body control.',
+  [('Movement prep', '8 min'),
+   ('Deceleration mechanics', '5 x 3 reps/side'),
+   ('COD drill: planned angles', '6 x 20 sec'),
+   ('Reactive agility drill', '8 x 15 sec'),
+   ('Sport skill under COD fatigue', '4 x 4 min')]),
+ ('Power Technique Session',
+  'Transfer speed and force into sport skill.',
+  [('Warm-up + activation', '10 min'),
+   ('Explosive med-ball or jump prep', '5 x 3 reps'),
+   ('High-quality sport power reps', '8 x 3 reps'),
+   ('Power skill into live decision', '6 x 60 sec'),
+   ('Mobility reset', '6 min')]),
+ ('Endurance Skills Session',
+  'Hold technique while fatigue rises.',
+  [('Progressive warm-up', '8 min'),
+   ('Tempo skill intervals', '6 x 3 min'),
+   ('Sport-specific repeated efforts', '8 x 45 sec'),
+   ('Technical recovery reps', '5 x 90 sec'),
+   ('Breathing cooldown', '5 min')]),
+ ('Small-Sided Competition Session',
+  'Create game-like pressure with controlled volume.',
+  [('Warm-up + ball/object feel', '8 min'),
+   ('Rules-based mini-games', '5 x 4 min'),
+   ('Constraint challenge', '4 x 3 min'),
+   ('Score-pressure finisher', '6 x 45 sec'),
+   ('Cooldown', '5 min')]),
+ ('Reaction and Decision Session',
+  'Improve perception, timing, and choices.',
+  [('Warm-up with visual cue', '8 min'),
+   ('Partner reaction drill', '8 x 20 sec'),
+   ('Decision-tree technical reps', '6 x 2 min'),
+   ('Live cue game', '5 x 3 min'),
+   ('Review: 3 key decisions', '3 min')]),
+ ('Strength-Endurance Sport Session',
+  'Repeat sport actions without losing posture.',
+  [('Warm-up', '8 min'),
+   ('Bodyweight strength circuit', '3 rounds'),
+   ('Sport technique circuit', '4 rounds x 5 min'),
+   ('Fatigue skill test', '5 x 60 sec'),
+   ('Mobility', '6 min')]),
+ ('Match Simulation Session',
+  'Prepare for realistic competition rhythm.',
+  [('Warm-up routine', '10 min'),
+   ('Phase 1: controlled tempo', '8 min'),
+   ('Phase 2: high-pressure scenarios', '6 x 2 min'),
+   ('Phase 3: final-score simulation', '8 min'),
+   ('Cooldown and notes', '5 min')]),
+ ('Recovery Skill Session',
+  'Keep quality high while reducing load.',
+  [('Easy warm-up', '6 min'),
+   ('Mobility + tissue prep', '8 min'),
+   ('Low-intensity technical reps', '20 min'),
+   ('Coordination game', '10 min'),
+   ('Cooldown breathing', '5 min')])]
+
+SPORTZE_GYM_SESSION_TEMPLATES: List[Tuple[str, List[Tuple[str, str]]]] = [('Gym Session 1 - Lower-Body Power',
+  [('Trap-bar jump or jump squat', '4 x 3'),
+   ('Front squat', '4 x 5'),
+   ('Split squat', '3 x 6/side'),
+   ('Calf/ankle stiffness hops', '3 x 20 sec'),
+   ('Core anti-rotation press', '3 x 10/side')]),
+ ('Gym Session 2 - Upper-Body Power and Shoulder Care',
+  [('Med-ball rotational throw', '5 x 4/side'),
+   ('Pull-up or pulldown', '4 x 6-8'),
+   ('Landmine press', '3 x 6/side'),
+   ('Cable row', '3 x 10'),
+   ('External rotation + scap push-up', '3 x 12 each')]),
+ ('Gym Session 3 - Acceleration and Strength',
+  [('Sled push or resisted sprint', '6 x 10-15 m'),
+   ('Deadlift variation', '4 x 4'),
+   ('Step-up', '3 x 6/side'),
+   ('Hamstring curl or Nordic regression', '3 x 6-8'),
+   ('Farmer carry', '4 x 25 m')]),
+ ('Gym Session 4 - Agility, Braking, and Core',
+  [('Lateral bounds', '4 x 5/side'),
+   ('Copenhagen plank', '3 x 20 sec/side'),
+   ('Lateral lunge', '3 x 8/side'),
+   ('Pallof walkout', '3 x 6/side'),
+   ('Landing mechanics', '5 x 3 reps')]),
+ ('Gym Session 5 - Hypertrophy and Durability',
+  [('Goblet squat', '3 x 10'),
+   ('DB bench press', '3 x 8-10'),
+   ('Single-arm row', '3 x 10/side'),
+   ('Romanian deadlift', '3 x 8'),
+   ('Loaded carry', '3 x 30 m')]),
+ ('Gym Session 6 - Conditioning Circuit',
+  [('Bike/row/ski erg interval', '8 x 30 sec hard / 60 sec easy'),
+   ('Kettlebell swing', '4 x 12'),
+   ('Push-up', '4 x 10-15'),
+   ('Walking lunge', '4 x 12/side'),
+   ('Dead bug', '3 x 10/side')]),
+ ('Gym Session 7 - Mobility, Prehab, and Recovery Strength',
+  [('Hip mobility flow', '8 min'),
+   ('Thoracic rotation', '3 x 8/side'),
+   ('Tempo split squat', '3 x 8/side'),
+   ('Face pull', '3 x 15'),
+   ('Breathing reset', '5 min')])]
+
+SPORT_SIMILARITY_MAP: Dict[str, Dict[str, str]] = {
+    'Netball': {'template': 'Basketball', 'why': 'court spacing, pivots, jumping, passing lanes', 'adaptation': 'basketball court movement + volleyball-style landing control'},
+    'Futsal': {'template': 'Soccer', 'why': 'small-sided football, repeated accelerations', 'adaptation': 'soccer plan with tighter spaces and more change-of-direction'},
+    'Beach Soccer': {'template': 'Soccer', 'why': 'football skills on unstable sand', 'adaptation': 'soccer plan with sand endurance and ankle/calf load'},
+    'Beach Volleyball': {'template': 'Volleyball', 'why': 'same net rules, lower player count, sand movement', 'adaptation': 'volleyball plan with sand power and shoulder endurance'},
+    'Padel': {'template': 'Tennis', 'why': 'racket sport, short sprints, volleys, walls', 'adaptation': 'tennis plan with more reactive footwork and trunk rotation'},
+    'Squash': {'template': 'Tennis', 'why': 'racket skill, repeated lunges, tight court', 'adaptation': 'tennis plan with higher repeated-sprint density'},
+    'Racquetball': {'template': 'Tennis', 'why': 'racket striking, wall rebound, accelerations', 'adaptation': 'tennis plan with wall-reaction and shoulder care'},
+    'Pickleball': {'template': 'Tennis', 'why': 'racket/net court with lower running volume', 'adaptation': 'tennis plan with quicker hands and deceleration'},
+    'Lacrosse': {'template': 'Field Hockey', 'why': 'stick handling, dodging, team invasion patterns', 'adaptation': 'field hockey plan with more contact and upper-body power'},
+    'Floorball': {'template': 'Field Hockey', 'why': 'stick-and-ball, fast indoor transitions', 'adaptation': 'field hockey plan with indoor sprint repeats'},
+    'Bandy': {'template': 'Ice Hockey', 'why': 'stick/puck-ball on ice, endurance skating', 'adaptation': 'ice hockey plan with longer aerobic skating blocks'},
+    'Ringette': {'template': 'Ice Hockey', 'why': 'ice skating, team invasion, quick passing', 'adaptation': 'ice hockey plan with passing speed and skating agility'},
+    'Inline Hockey': {'template': 'Ice Hockey', 'why': 'hockey pattern without ice surface', 'adaptation': 'ice hockey plan adapted to roller mechanics'},
+    'Roller Hockey': {'template': 'Field Hockey', 'why': 'stick sport on wheels, agility and passing', 'adaptation': 'field hockey plan with skating/roller conditioning'},
+    'Australian Rules Football': {'template': 'Rugby', 'why': 'contact, kicking, repeated running, aerial contests', 'adaptation': 'rugby plan with longer running and jump-catch work'},
+    'Gaelic Football': {'template': 'Rugby', 'why': 'contact running, kicking, catching, transitions', 'adaptation': 'rugby-like plan with soccer kicking and repeated carries'},
+    'Hurling': {'template': 'Field Hockey', 'why': 'stick-ball, sprinting, striking, aerial skill', 'adaptation': 'field hockey plan with more overhead striking power'},
+    'Camogie': {'template': 'Field Hockey', 'why': 'hurling-style stick-ball demands', 'adaptation': 'field hockey plan with overhead striking and sprinting'},
+    'Rugby League': {'template': 'Rugby', 'why': 'contact collision, repeated defensive lines', 'adaptation': 'rugby plan with shorter high-intensity intervals'},
+    'Rugby Sevens': {'template': 'Rugby', 'why': 'open-field sprinting and contact', 'adaptation': 'rugby plan with more speed endurance'},
+    'Touch Rugby': {'template': 'Rugby', 'why': 'rugby spacing without tackling', 'adaptation': 'rugby plan with agility and aerobic speed'},
+    'Flag Football': {'template': 'American Football', 'why': 'routes, acceleration, evasive running', 'adaptation': 'American football plan with less contact and more agility'},
+    'Ultimate Frisbee': {'template': 'Soccer', 'why': 'field invasion, repeated running, cutting', 'adaptation': 'soccer plan with shoulder throwing and jump timing'},
+    'Handball Beach': {'template': 'Handball', 'why': 'same throwing patterns, sand movement', 'adaptation': 'handball plan with sand power and landing work'},
+    'Dodgeball': {'template': 'Handball', 'why': 'throwing power, agility, reaction', 'adaptation': 'handball plan with more evasive agility'},
+    'Sepak Takraw': {'template': 'Volleyball', 'why': 'net sport, acrobatic kicking, jumping', 'adaptation': 'volleyball plan with mobility and hip power'},
+    'Footvolley': {'template': 'Volleyball', 'why': 'net sport with soccer touches on sand', 'adaptation': 'volleyball plan with soccer coordination and sand work'},
+    'Bossaball': {'template': 'Volleyball', 'why': 'volleyball with acrobatics/trampoline', 'adaptation': 'volleyball plan with gymnastics landing and core control'},
+    'Kabaddi': {'template': 'Rugby', 'why': 'contact, wrestling strength, repeated raids', 'adaptation': 'rugby plan with wrestling strength and breath-control intervals'},
+    'Kho Kho': {'template': 'Running', 'why': 'tag, chasing, turning, speed endurance', 'adaptation': 'running plan with agility, acceleration and reactive turns'},
+    'Softball': {'template': 'Baseball', 'why': 'bat-and-ball, throwing, sprint starts', 'adaptation': 'baseball plan with slightly higher fielding volume'},
+    'Rounders': {'template': 'Baseball', 'why': 'bat-and-ball, bases, fielding', 'adaptation': 'baseball plan with simple sprint/throw emphasis'},
+    'Kickball': {'template': 'Baseball', 'why': 'base-running game with kicking', 'adaptation': 'baseball plan with soccer-style kicking and sprinting'},
+    'Pesapallo': {'template': 'Baseball', 'why': 'bat-and-ball with sprinting and throwing', 'adaptation': 'baseball plan with more acceleration and directional running'},
+    'Tee-ball': {'template': 'Baseball', 'why': 'introductory bat-and-ball mechanics', 'adaptation': 'baseball beginner plan with basic coordination'},
+    'Wiffle Ball': {'template': 'Baseball', 'why': 'bat-and-ball hitting/fielding in small space', 'adaptation': 'baseball plan with lighter throwing load'},
+    'Curling': {'template': 'Golf', 'why': 'precision, balance, tactical shot execution', 'adaptation': 'golf-like precision plan with mobility and low-intensity conditioning'},
+    'Bowling': {'template': 'Golf', 'why': 'precision skill, repeatable mechanics', 'adaptation': 'golf plan with shoulder/core stability and unilateral balance'},
+    'Ten-pin Bowling': {'template': 'Golf', 'why': 'repeatable precision release', 'adaptation': 'golf plan with wrist/shoulder durability'},
+    'Bocce': {'template': 'Golf', 'why': 'precision target sport', 'adaptation': 'golf plan with balance, coordination, light strength'},
+    'Petanque': {'template': 'Golf', 'why': 'precision throwing and posture', 'adaptation': 'golf plan with shoulder mobility and trunk control'},
+    'Darts': {'template': 'Golf', 'why': 'fine motor precision under pressure', 'adaptation': 'golf plan reduced to posture, core, shoulder endurance'},
+    'Billiards / Pool': {'template': 'Golf', 'why': 'precision, stance, concentration', 'adaptation': 'golf plan reduced to mobility and posture endurance'},
+    'Snooker': {'template': 'Golf', 'why': 'precision, stance, calm execution', 'adaptation': 'golf plan with low fatigue and mental routine'},
+    'Archery': {'template': 'Golf', 'why': 'precision, posture, shoulder stability', 'adaptation': 'golf-like precision plan with scapular endurance'},
+    'Shooting Sport': {'template': 'Golf', 'why': 'precision, breath control, postural stability', 'adaptation': 'golf-like plan with isometrics and breathing control'},
+    'Equestrian Jumping': {'template': 'Gymnastics', 'why': 'balance, rhythm, core control', 'adaptation': 'gymnastics plan with lower-body stability and posture'},
+    'Dressage': {'template': 'Gymnastics', 'why': 'posture, control, balance, rhythm', 'adaptation': 'gymnastics plan with core, hip mobility, isometrics'},
+    'Rodeo': {'template': 'Rugby', 'why': 'contact resilience, grip, trunk control', 'adaptation': 'rugby plan with grip, core, neck and hip durability'},
+    'Polo': {'template': 'Field Hockey', 'why': 'stick striking, team tactics, rotation', 'adaptation': 'field hockey plan with posture and rotational power'},
+    'Canoe Sprint': {'template': 'Rowing', 'why': 'paddle endurance and upper-body power', 'adaptation': 'rowing plan with unilateral trunk rotation'},
+    'Kayaking': {'template': 'Rowing', 'why': 'paddle endurance, trunk rotation', 'adaptation': 'rowing plan with shoulder care and torso power'},
+    'Canoe Slalom': {'template': 'Rowing', 'why': 'paddle power plus agility/control', 'adaptation': 'rowing plan with reactive core and balance'},
+    'Dragon Boat': {'template': 'Rowing', 'why': 'team paddling rhythm, high repeat power', 'adaptation': 'rowing plan with synchronized power endurance'},
+    'Sailing': {'template': 'Rowing', 'why': 'core, grip, balance, endurance', 'adaptation': 'rowing plan with balance and isometric strength'},
+    'Windsurfing': {'template': 'Surfing', 'why': 'board balance, wind control, core endurance', 'adaptation': 'surfing plan with grip and shoulder endurance'},
+    'Kitesurfing': {'template': 'Surfing', 'why': 'board balance, pulling force, core', 'adaptation': 'surfing plan with more grip and anti-rotation'},
+    'Wakeboarding': {'template': 'Snowboarding', 'why': 'board stance, balance, pulling force', 'adaptation': 'snowboarding plan with water-start and grip strength'},
+    'Waterskiing': {'template': 'Skiing', 'why': 'ski stance, rope pull, balance', 'adaptation': 'skiing plan with grip and posterior-chain strength'},
+    'Diving': {'template': 'Gymnastics', 'why': 'aerial control, takeoff, mobility', 'adaptation': 'gymnastics plan with landing mechanics and shoulder mobility'},
+    'Artistic Swimming': {'template': 'Swimming', 'why': 'aquatic endurance, flexibility, core', 'adaptation': 'swimming plan with gymnastics mobility and breath control'},
+    'Open Water Swimming': {'template': 'Swimming', 'why': 'aerobic endurance, pacing, shoulder durability', 'adaptation': 'swimming plan with longer continuous endurance'},
+    'Lifesaving Sport': {'template': 'Swimming', 'why': 'swim speed, rescue carries, mixed endurance', 'adaptation': 'swimming plan with loaded carries and beach sprinting'},
+    'Triathlon': {'template': 'Running', 'why': 'endurance base with swim/bike/run', 'adaptation': 'running plan with cycling and swimming cross-training'},
+    'Duathlon': {'template': 'Running', 'why': 'run-bike-run endurance', 'adaptation': 'running plan with cycling bricks'},
+    'Aquathlon': {'template': 'Swimming', 'why': 'swim-run transitions', 'adaptation': 'swimming plan with running intervals'},
+    'Race Walking': {'template': 'Running', 'why': 'endurance gait under technical rules', 'adaptation': 'running plan with lower impact and hip endurance'},
+    'Trail Running': {'template': 'Running', 'why': 'running with terrain, climbs, stability', 'adaptation': 'running plan with hill strength and ankle stability'},
+    'Cross Country Running': {'template': 'Running', 'why': 'running endurance and uneven terrain', 'adaptation': 'running plan with aerobic intervals and hills'},
+    'Marathon': {'template': 'Running', 'why': 'long aerobic endurance', 'adaptation': 'running plan with longer steady volume'},
+    'Sprint Running': {'template': 'Track & Field', 'why': 'max velocity, power, starts', 'adaptation': 'track plan with acceleration and strength-power'},
+    'Hurdles': {'template': 'Track & Field', 'why': 'sprinting plus rhythm and mobility', 'adaptation': 'track plan with plyometrics and hip mobility'},
+    'Long Jump': {'template': 'Track & Field', 'why': 'sprint approach and explosive takeoff', 'adaptation': 'track plan with jump power and landing mechanics'},
+    'High Jump': {'template': 'Track & Field', 'why': 'jump power, curve approach, mobility', 'adaptation': 'track plan with plyos and core control'},
+    'Pole Vault': {'template': 'Gymnastics', 'why': 'sprint, plant, aerial body control', 'adaptation': 'gymnastics/track hybrid with upper-body power'},
+    'Javelin': {'template': 'Track & Field', 'why': 'throwing power and runway speed', 'adaptation': 'track plan with shoulder care and rotational power'},
+    'Shot Put': {'template': 'Weightlifting', 'why': 'explosive strength and power transfer', 'adaptation': 'weightlifting plan with throws and trunk power'},
+    'Discus': {'template': 'Track & Field', 'why': 'rotational throwing power', 'adaptation': 'track plan with rotational strength'},
+    'Hammer Throw': {'template': 'Weightlifting', 'why': 'rotational power and heavy strength', 'adaptation': 'weightlifting plan with rotation and grip'},
+    'Powerlifting': {'template': 'Weightlifting', 'why': 'max strength squat/bench/deadlift', 'adaptation': 'weightlifting plan focused on maximal strength'},
+    'Olympic Weightlifting': {'template': 'Weightlifting', 'why': 'snatch/clean/jerk power', 'adaptation': 'weightlifting plan with speed-strength technique'},
+    'Strongman': {'template': 'Weightlifting', 'why': 'loaded carries, heavy odd objects', 'adaptation': 'weightlifting plan with grip and conditioning'},
+    'CrossFit': {'template': 'Weightlifting', 'why': 'mixed strength and conditioning', 'adaptation': 'weightlifting plan with more metabolic circuits'},
+    'Calisthenics': {'template': 'Gymnastics', 'why': 'bodyweight strength and control', 'adaptation': 'gymnastics plan with progressive bodyweight strength'},
+    'Parkour': {'template': 'Gymnastics', 'why': 'jumping, landing, vaulting, agility', 'adaptation': 'gymnastics plan with movement skill and landing durability'},
+    'Trampoline': {'template': 'Gymnastics', 'why': 'aerial rhythm and landing control', 'adaptation': 'gymnastics plan with plyometrics and body control'},
+    'Cheerleading': {'template': 'Gymnastics', 'why': 'stunts, jumps, tumbling, teamwork', 'adaptation': 'gymnastics plan with partner stability and power'},
+    'DanceSport': {'template': 'Gymnastics', 'why': 'rhythm, agility, posture, endurance', 'adaptation': 'gymnastics plan with footwork and mobility'},
+    'Breakdancing': {'template': 'Gymnastics', 'why': 'floor power, mobility, rhythm', 'adaptation': 'gymnastics plan with upper-body strength and hip mobility'},
+    'Climbing': {'template': 'Gymnastics', 'why': 'grip strength, body tension, pulling', 'adaptation': 'gymnastics plan with pulling and forearm endurance'},
+    'Bouldering': {'template': 'Gymnastics', 'why': 'explosive grip and body control', 'adaptation': 'gymnastics plan with power grip and mobility'},
+    'Mountaineering': {'template': 'Skiing', 'why': 'endurance, load carriage, altitude tolerance', 'adaptation': 'skiing plan with hiking endurance and strength'},
+    'Orienteering': {'template': 'Running', 'why': 'running plus navigation under fatigue', 'adaptation': 'running plan with intervals and decision-making'},
+    'Adventure Racing': {'template': 'Running', 'why': 'multi-discipline endurance and navigation', 'adaptation': 'running plan with mixed endurance circuits'},
+    'Biathlon': {'template': 'Skiing', 'why': 'ski endurance plus shooting calm', 'adaptation': 'skiing plan with breath-control precision'},
+    'Cross-country Skiing': {'template': 'Skiing', 'why': 'high aerobic endurance and poles', 'adaptation': 'skiing plan with long intervals'},
+    'Alpine Skiing': {'template': 'Skiing', 'why': 'leg power, edges, eccentric control', 'adaptation': 'skiing plan with power and knee stability'},
+    'Freestyle Skiing': {'template': 'Skiing', 'why': 'skiing with aerial/park skills', 'adaptation': 'skiing plan with gymnastics landing control'},
+    'Ski Jumping': {'template': 'Skiing', 'why': 'takeoff power and aerial control', 'adaptation': 'skiing plan with plyometrics and landing'},
+    'Nordic Combined': {'template': 'Skiing', 'why': 'ski jump plus cross-country endurance', 'adaptation': 'skiing plan with power plus aerobic volume'},
+    'Speed Skating': {'template': 'Ice Hockey', 'why': 'skating power, speed endurance', 'adaptation': 'ice hockey plan with more straight-line speed'},
+    'Figure Skating': {'template': 'Gymnastics', 'why': 'aerial control, edges, balance', 'adaptation': 'gymnastics plan with skating-specific strength'},
+    'Short Track Speed Skating': {'template': 'Ice Hockey', 'why': 'ice sprinting, turns, contact risk', 'adaptation': 'ice hockey plan with cornering and repeated sprints'},
+    'Inline Speed Skating': {'template': 'Cycling', 'why': 'cyclical leg power and speed endurance', 'adaptation': 'cycling plan with skating mechanics'},
+    'BMX Racing': {'template': 'Cycling', 'why': 'bike sprints, jumps, power', 'adaptation': 'cycling plan with explosive starts and landing'},
+    'BMX Freestyle': {'template': 'Skateboarding', 'why': 'tricks, balance, aerial control', 'adaptation': 'skateboarding plan with bike-specific strength'},
+    'Mountain Biking': {'template': 'Cycling', 'why': 'bike endurance, terrain control', 'adaptation': 'cycling plan with upper-body stability'},
+    'Road Cycling': {'template': 'Cycling', 'why': 'aerobic endurance and pacing', 'adaptation': 'cycling plan with long steady intervals'},
+    'Track Cycling': {'template': 'Cycling', 'why': 'sprint power or sustained pace', 'adaptation': 'cycling plan with velodrome power intervals'},
+    'Cyclocross': {'template': 'Cycling', 'why': 'bike handling, running carries, mud', 'adaptation': 'cycling plan with repeated dismount intervals'},
+    'Motocross': {'template': 'Cycling', 'why': 'riding endurance, grip, impact tolerance', 'adaptation': 'cycling-like plan with more grip/neck/core strength'},
+    'Skateboard Vert': {'template': 'Skateboarding', 'why': 'board balance, aerial tricks', 'adaptation': 'skateboarding plan with landing and hip mobility'},
+    'Scootering': {'template': 'Skateboarding', 'why': 'park tricks, jumps, landings', 'adaptation': 'skateboarding plan with handlebar grip and landings'},
+    'Roller Derby': {'template': 'Ice Hockey', 'why': 'skating, contact, team tactics', 'adaptation': 'ice hockey plan with roller and contact conditioning'},
+    'Speed Climbing': {'template': 'Gymnastics', 'why': 'explosive vertical sprint and grip', 'adaptation': 'gymnastics plan with speed-power pulls'},
+    'Sumo': {'template': 'Wrestling', 'why': 'grappling force, balance, pushing', 'adaptation': 'wrestling plan with heavy lower-body strength'},
+    'Judo': {'template': 'Martial Arts', 'why': 'throws, grip fighting, falls', 'adaptation': 'martial arts plan with wrestling and landing skills'},
+    'Brazilian Jiu-Jitsu': {'template': 'Martial Arts', 'why': 'ground grappling, isometric strength', 'adaptation': 'martial arts plan with wrestling endurance'},
+    'Sambo': {'template': 'Martial Arts', 'why': 'judo/wrestling hybrid', 'adaptation': 'martial arts plan with throws and grappling strength'},
+    'Aikido': {'template': 'Martial Arts', 'why': 'movement, balance, joint control', 'adaptation': 'martial arts plan with mobility and control'},
+    'Karate': {'template': 'Martial Arts', 'why': 'striking speed, footwork, reaction', 'adaptation': 'martial arts plan with explosive striking intervals'},
+    'Taekwondo': {'template': 'Martial Arts', 'why': 'kicking speed, mobility, reaction', 'adaptation': 'martial arts plan with hip mobility and kick power'},
+    'Muay Thai': {'template': 'MMA', 'why': 'striking, clinch, conditioning', 'adaptation': 'MMA plan with striking volume and shin/hip durability'},
+    'Kickboxing': {'template': 'Boxing', 'why': 'boxing plus kicks and footwork', 'adaptation': 'boxing plan with lower-body kick power'},
+    'Savate': {'template': 'Kickboxing', 'why': 'boxing/kicking with footwork', 'adaptation': 'boxing plan with kick mobility and agility'},
+    'Fencing': {'template': 'Martial Arts', 'why': 'combat footwork, reaction, lunges', 'adaptation': 'martial arts plan with lunge speed and precision'},
+    'Kendo': {'template': 'Martial Arts', 'why': 'weapon striking, footwork, reaction', 'adaptation': 'martial arts plan with shoulder endurance'},
+    'Wushu': {'template': 'Martial Arts', 'why': 'forms, kicks, acrobatics', 'adaptation': 'martial arts plan with gymnastics mobility'},
+    'Capoeira': {'template': 'Martial Arts', 'why': 'kicks, rhythm, acrobatics', 'adaptation': 'martial arts plan with gymnastics and mobility'},
+    'Lethwei': {'template': 'MMA', 'why': 'full-contact striking and clinch', 'adaptation': 'MMA plan with striking and neck/core work'},
+    'Greco-Roman Wrestling': {'template': 'Wrestling', 'why': 'upper-body throws and clinch control', 'adaptation': 'wrestling plan with trunk and grip emphasis'},
+    'Freestyle Wrestling': {'template': 'Wrestling', 'why': 'takedowns, scrambles, mat control', 'adaptation': 'wrestling plan with repeated shots and sprawls'},
+    'Arm Wrestling': {'template': 'Wrestling', 'why': 'grip, wrist, elbow force', 'adaptation': 'wrestling plan reduced to grip/forearm strength'},
+    'Tug of War': {'template': 'Rowing', 'why': 'team pulling force and grip endurance', 'adaptation': 'rowing plan with maximal pulls and coordination'},
+    'Bodybuilding': {'template': 'Weightlifting', 'why': 'hypertrophy and muscle isolation', 'adaptation': 'weightlifting plan with bodybuilding volume'},
+    'Fitness Training': {'template': 'Weightlifting', 'why': 'general strength and conditioning', 'adaptation': 'weightlifting plan with balanced full-body work'},
+    'Aerobics': {'template': 'Running', 'why': 'rhythmic cardio endurance', 'adaptation': 'running plan with low-impact circuits'},
+    'Pilates': {'template': 'Gymnastics', 'why': 'core control, mobility, posture', 'adaptation': 'gymnastics plan reduced to core and alignment'},
+    'Yoga Sport': {'template': 'Gymnastics', 'why': 'mobility, balance, isometric control', 'adaptation': 'gymnastics plan with mobility and breath control'},
+    'Rowing Indoor / Erg': {'template': 'Rowing', 'why': 'same pattern without boat balance', 'adaptation': 'rowing plan with erg intervals'},
+    'Coastal Rowing': {'template': 'Rowing', 'why': 'rowing with waves and beach starts', 'adaptation': 'rowing plan with stability and beach sprinting'},
+    'Canoe Polo': {'template': 'Water Polo', 'why': 'water invasion game plus paddling', 'adaptation': 'water polo plan with kayak/paddle upper-body load'},
+    'Underwater Hockey': {'template': 'Water Polo', 'why': 'aquatic invasion, breath control, puck skill', 'adaptation': 'water polo plan with apnea and fin work'},
+    'Underwater Rugby': {'template': 'Water Polo', 'why': 'aquatic contact and breath control', 'adaptation': 'water polo plan with more wrestling strength'},
+    'Finswimming': {'template': 'Swimming', 'why': 'swim speed with fins and dolphin kick', 'adaptation': 'swimming plan with core and ankle mobility'},
+    'Freediving': {'template': 'Swimming', 'why': 'breath control and water efficiency', 'adaptation': 'swimming plan reduced to safety-first apnea conditioning'},
+    'Water Ski Racing': {'template': 'Skiing', 'why': 'ski stance, water speed, grip', 'adaptation': 'skiing plan with grip and core bracing'},
+    'Rafting': {'template': 'Rowing', 'why': 'team paddling, trunk endurance', 'adaptation': 'rowing plan with reactive core'},
+    'Stand-up Paddleboarding': {'template': 'Rowing', 'why': 'paddling plus balance', 'adaptation': 'rowing plan with unilateral balance and trunk rotation'},
+    'Dragon Surf Ski': {'template': 'Rowing', 'why': 'paddle endurance on open water', 'adaptation': 'rowing plan with ocean stability'},
+    'Bodyboarding': {'template': 'Surfing', 'why': 'wave timing, paddling, core', 'adaptation': 'surfing plan with prone paddling and hip mobility'},
+    'Skimboarding': {'template': 'Surfing', 'why': 'beach sprint, board balance', 'adaptation': 'surfing plan with sprint starts and landings'},
+    'Longboarding Surf': {'template': 'Surfing', 'why': 'board balance, wave control', 'adaptation': 'surfing plan with low-stance endurance'},
+    'Snowshoe Running': {'template': 'Running', 'why': 'endurance on snow resistance', 'adaptation': 'running plan with hip flexor and calf endurance'},
+    'Sled Hockey': {'template': 'Ice Hockey', 'why': 'upper-body propulsion on ice', 'adaptation': 'ice hockey plan adapted to upper-body power'},
+    'Luge': {'template': 'Skiing', 'why': 'high-speed sled, neck/core isometrics', 'adaptation': 'skiing plan reduced to neck/core and reaction'},
+    'Skeleton': {'template': 'Skiing', 'why': 'sprint start plus sled control', 'adaptation': 'skiing plan with start sprint and neck strength'},
+    'Bobsleigh': {'template': 'Track & Field', 'why': 'explosive push start and speed', 'adaptation': 'track plan with sprint/power emphasis'},
+    'Dog Agility': {'template': 'Running', 'why': 'handler sprinting and reaction', 'adaptation': 'running plan with agility and commands'},
+    'Disc Golf': {'template': 'Golf', 'why': 'throwing precision and walking', 'adaptation': 'golf plan with rotational throwing mobility'},
+    'Teqball': {'template': 'Soccer', 'why': 'soccer touches on curved table', 'adaptation': 'soccer plan with coordination and mobility'},
+    'Footgolf': {'template': 'Golf', 'why': 'golf course strategy with football kicking', 'adaptation': 'golf plan with soccer kicking mechanics'},
+    'Chess Boxing': {'template': 'Boxing', 'why': 'boxing rounds plus cognitive recovery', 'adaptation': 'boxing plan with controlled intensity'},
+    'E-Soccer / Football Gaming': {'template': 'Esports', 'why': 'gaming skill, football decision models', 'adaptation': 'esports plan with posture + soccer tactical awareness'},
+    'Sim Racing': {'template': 'Esports', 'why': 'reaction, focus, neck/forearm endurance', 'adaptation': 'esports plan with neck, grip, posture endurance'},
+    'Drone Racing': {'template': 'Esports', 'why': 'reaction, fine motor, visual tracking', 'adaptation': 'esports plan with posture and reaction drills'},
+    'Speedcubing': {'template': 'Esports', 'why': 'fine motor speed and focus', 'adaptation': 'esports plan with hand/wrist care'},
+    'Mind Sports / Chess': {'template': 'Esports', 'why': 'cognitive endurance and focus', 'adaptation': 'esports plan with posture, mobility, recovery'},
+    'Go': {'template': 'Esports', 'why': 'cognitive endurance and planning', 'adaptation': 'esports plan with posture and concentration blocks'},
+}
+
+
+SPORT_TEMPLATE_ALIASES: Dict[str, str] = {
+    "football": "Soccer", "soccer": "Soccer", "futebol": "Soccer", "futbol": "Soccer",
+    "aussie rules": "Rugby", "australian rules": "Rugby",
+    "polo aquatico": "Water Polo", "polo aquático": "Water Polo", "waterpolo": "Water Polo",
+    "track": "Track & Field", "athletics": "Track & Field", "track and field": "Track & Field",
+    "mma": "MMA", "mixed martial arts": "MMA", "martial arts": "MMA",
+    "gym": "Gym", "fitness": "Gym", "academia": "Gym", "musculacao": "Gym", "musculação": "Gym",
+    "bodybuilding": "Weightlifting", "weight training": "Gym", "lifting": "Weightlifting",
+    "gaming": "Esports", "e sports": "Esports", "esport": "Esports", "esports": "Esports",
+}
+
+TEAM_TEMPLATE_SPORTS = {
+    "Soccer", "Cricket", "Basketball", "Field Hockey", "Volleyball", "Baseball", "Rugby", "American Football",
+    "Ice Hockey", "Handball", "Netball", "Lacrosse", "Softball", "Water Polo"
+}
+
+INDIVIDUAL_TEMPLATE_SPORTS = set(CORE_SPORT_TEMPLATE_INFO.keys()) - TEAM_TEMPLATE_SPORTS - {"Gym"}
+
+
+def _session_focus_from_emphasis(emphasis: str, fallback: str = "Technical Quality") -> str:
+    text = canonical_compact(emphasis)
+    if any(x in text for x in ["speed", "sprint", "acceleration"]):
+        return "Speed"
+    if any(x in text for x in ["power", "jump", "throw", "explosive"]):
+        return "Power"
+    if any(x in text for x in ["endurance", "aerobic", "conditioning", "stamina"]):
+        return "Conditioning"
+    if any(x in text for x in ["strength", "grip", "posterior", "collision"]):
+        return "Strength"
+    return fallback
+
+
+def _parse_template_sets_reps(prescription: str) -> str:
+    # Keep original PDF prescription, but make it generator-friendly.
+    return str(prescription).replace("x", "x").strip()
+
+
+def make_core_sport_library(sport_name: str, emphasis: str) -> Dict[str, List[Exercise]]:
+    """Builds a reusable library from the PDF session templates.
+    Each core sport receives the 10 normal sport templates converted into category blocks.
+    """
+    focus = _session_focus_from_emphasis(emphasis)
+    library = {"Warm-Up": [], "Technical": [], "Physical": [], "Tactical": [], "Recovery": []}
+    for idx, (session_title, purpose, blocks) in enumerate(SPORTZE_NORMAL_SESSION_TEMPLATES, start=1):
+        for block_name, prescription in blocks:
+            lower = canonical_compact(block_name)
+            if "warm" in lower or "prep" in lower:
+                category = "Warm-Up"
+            elif "cool" in lower or "breath" in lower or "mobility" in lower or "review" in lower:
+                category = "Recovery"
+            elif any(word in lower for word in ["game", "simulation", "decision", "scenario", "live", "score", "rules", "constraint"]):
+                category = "Tactical"
+            elif any(word in lower for word in ["sprint", "acceleration", "agility", "cod", "strength", "circuit", "interval", "power", "bodyweight", "reaction"]):
+                category = "Physical"
+            else:
+                category = "Technical"
+            library[category].append(
+                Exercise(
+                    name=f"{sport_name} - {session_title}: {block_name}",
+                    category=category,
+                    prescription=_parse_template_sets_reps(prescription),
+                    purpose=f"{purpose} Sport emphasis: {emphasis}.",
+                    equipment_tags=["Sport equipment if available", "Open space", "Cones"],
+                    intensity_tags=["Low", "Moderate", "High"],
+                    focus_tags=[focus, "Technical Quality", "Conditioning", "Match Rhythm"],
+                    position_tags=["All"], level_tags=["All"], phase_tags=["All"],
+                    time_weight=1.0 + (0.04 * (idx % 4)),
+                    coaching_points=[
+                        f"Keep the drill specific to {sport_name}: {emphasis}.",
+                        "Quality comes before fatigue; stop the rep if mechanics break.",
+                    ],
+                )
+            )
+    return library
+
+
+def make_sport_focused_gym_library(template_sport: str, emphasis: str) -> Dict[str, List[Exercise]]:
+    """Uses the 7 adapted gym sessions from the PDF for sport-focused gym mode."""
+    focus = _session_focus_from_emphasis(emphasis, "Strength")
+    library = {"Warm-Up": [], "Technical": [], "Physical": [], "Tactical": [], "Recovery": []}
+    library["Warm-Up"].append(Exercise(
+        f"{template_sport} gym warm-up: mobility + activation", "Warm-Up", "6-10 minutes progressive prep",
+        f"Prepare the body for a gym session that supports {template_sport}: {emphasis}.",
+        ["Bodyweight", "Bands", "Open space"], ["Low"], ["Movement Quality", focus], ["All"], ["All"], ["All"], 1.0,
+    ))
+    library["Technical"].append(Exercise(
+        f"{template_sport} gym technique ramp", "Technical", "2-3 lighter ramp sets before main work",
+        "Practice positions and tempo before loading.",
+        ["Bodyweight", "Dumbbells", "Barbell", "Machine"], ["Low", "Moderate"], ["Technical Quality", focus], ["All"], ["All"], ["All"], 0.8,
+    ))
+    for idx, (session_title, blocks) in enumerate(SPORTZE_GYM_SESSION_TEMPLATES, start=1):
+        for movement, prescription in blocks:
+            lower = canonical_compact(movement)
+            category = "Recovery" if any(w in lower for w in ["breathing", "mobility", "rotation"] ) and idx == 7 else "Physical"
+            library[category].append(Exercise(
+                name=f"{template_sport} adapted gym - {session_title}: {movement}",
+                category=category,
+                prescription=prescription,
+                purpose=f"Gym transfer for {template_sport}. Emphasis: {emphasis}.",
+                equipment_tags=["Bodyweight", "Bands", "Dumbbells", "Barbell", "Machine", "Medicine ball"],
+                intensity_tags=["Low", "Moderate", "High"],
+                focus_tags=[focus, "Strength", "Power", "Conditioning", "Movement Quality"],
+                position_tags=["All"], level_tags=["All"], phase_tags=["All"],
+                time_weight=1.05,
+                coaching_points=[
+                    f"Use gym work to improve {template_sport} performance, not just random fatigue.",
+                    "Keep reps fast and clean when the goal is athletic performance.",
+                ],
+            ))
+    library["Recovery"].append(Exercise(
+        f"{template_sport} cooldown and tissue reset", "Recovery", "5-8 minutes easy cooldown + mobility",
+        "Reduce stiffness and finish ready for the next sport session.",
+        ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75,
+    ))
+    return library
+
+
+def resolve_sport_template(sport_text: str) -> Tuple[Optional[str], str, Optional[Dict[str, str]]]:
+    """Returns: (template_sport, display_sport, similarity_info)."""
+    raw = normalize_text(sport_text)
+    compact = canonical_compact(raw)
+    if not compact:
+        return None, raw, None
+    if compact in {canonical_compact(x) for x in GYM_ALIASES}:
+        return "Gym", "Gym", None
+    alias = SPORT_TEMPLATE_ALIASES.get(compact)
+    if alias:
+        return alias, raw or alias, None
+    for sport_name in list(CORE_SPORT_TEMPLATE_INFO.keys()) + list(SPORT_LIBRARY.keys()) + list(SPORT_POSITIONS.keys()):
+        if canonical_compact(sport_name) == compact:
+            return sport_name, sport_name, None
+    for mapped_sport, info in SPORT_SIMILARITY_MAP.items():
+        if canonical_compact(mapped_sport) == compact:
+            return info["template"], raw or mapped_sport, info
+    # Soft matching for typos / partial names
+    try:
+        import difflib
+        keys = [canonical_compact(s) for s in list(CORE_SPORT_TEMPLATE_INFO.keys()) + list(SPORT_SIMILARITY_MAP.keys()) + list(SPORT_TEMPLATE_ALIASES.keys())]
+        close = difflib.get_close_matches(compact, keys, n=1, cutoff=0.78)
+        if close:
+            key = close[0]
+            for sport_name in CORE_SPORT_TEMPLATE_INFO:
+                if canonical_compact(sport_name) == key:
+                    return sport_name, raw or sport_name, None
+            for mapped_sport, info in SPORT_SIMILARITY_MAP.items():
+                if canonical_compact(mapped_sport) == key:
+                    return info["template"], raw or mapped_sport, info
+            if key in SPORT_TEMPLATE_ALIASES:
+                return SPORT_TEMPLATE_ALIASES[key], raw, None
+    except Exception:
+        pass
+    # Intelligent unknown fallback: infer by movement words.
+    if any(w in compact for w in ["gaelic", "contact", "tackle", "league", "union"]):
+        return "Rugby", raw, {"template": "Rugby", "why": "contact field invasion sport", "adaptation": "rugby-like contact, sprint, and power session"}
+    if any(w in compact for w in ["racket", "racquet", "paddle"]):
+        return "Tennis", raw, {"template": "Tennis", "why": "racket/paddle reaction sport", "adaptation": "tennis-like footwork, rotation, and reaction session"}
+    if any(w in compact for w in ["fight", "combat", "kick", "karate", "jitsu"]):
+        return "MMA", raw, {"template": "MMA", "why": "combat sport movement profile", "adaptation": "martial-arts conditioning and mobility session"}
+    if any(w in compact for w in ["swim", "water", "aquatic"]):
+        return "Swimming", raw, {"template": "Swimming", "why": "aquatic endurance and shoulder demand", "adaptation": "swimming-like conditioning and shoulder care"}
+    return "Soccer", raw, {"template": "Soccer", "why": "general field/court athletic fallback", "adaptation": "general agility, speed, technical-quality session"}
+
+
+def expand_sportze_libraries() -> None:
+    for sport_name, emphasis in CORE_SPORT_TEMPLATE_INFO.items():
+        if sport_name == "Gym":
+            continue
+        if sport_name not in SPORT_LIBRARY:
+            SPORT_LIBRARY[sport_name] = make_core_sport_library(sport_name, emphasis)
+        if sport_name not in SPORT_DURATION_STYLE:
+            SPORT_DURATION_STYLE[sport_name] = {"short": 6, "standard": 7, "long": 8}
+        if sport_name not in SPORT_BLUEPRINTS:
+            SPORT_BLUEPRINTS[sport_name] = DEFAULT_BLUEPRINTS
+    # Precompute sport-focused gym libraries under virtual names.
+    for sport_name, emphasis in CORE_SPORT_TEMPLATE_INFO.items():
+        if sport_name == "Gym":
+            continue
+        SPORT_LIBRARY[f"Gym for {sport_name}"] = make_sport_focused_gym_library(sport_name, emphasis)
+
+
+_SPORTZE_LIBRARIES_EXPANDED = False
+
+def ensure_sportze_libraries_expanded() -> None:
+    global _SPORTZE_LIBRARIES_EXPANDED
+    if not _SPORTZE_LIBRARIES_EXPANDED:
+        expand_sportze_libraries()
+        _SPORTZE_LIBRARIES_EXPANDED = True
+
+
+# -----------------------------------------------------------------------------
 # CHAT FLOW
 # -----------------------------------------------------------------------------
 def init_generator_state() -> None:
@@ -283,6 +802,8 @@ def init_generator_state() -> None:
         "training_profile": {},
         "latest_training_payload": None,
         "latest_training_summary": None,
+        "training_entry_mode": None,
+        "description_mode_waiting": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -315,22 +836,19 @@ def detect_sport_type(sport_text: str) -> str:
     sport = canonical_compact(sport_text)
     if not sport:
         return ""
-    if sport in {canonical_compact(x) for x in KNOWN_TEAM_SPORTS}:
+    template, _, _ = resolve_sport_template(sport_text) if "resolve_sport_template" in globals() else (None, sport_text, None)
+    if template == "Gym" or is_gym_sport(sport_text):
+        return "Individual Sport"
+    if template in TEAM_TEMPLATE_SPORTS or sport in {canonical_compact(x) for x in KNOWN_TEAM_SPORTS}:
         return "Team Sport"
-    if sport in {canonical_compact(x) for x in KNOWN_INDIVIDUAL_SPORTS} or is_gym_sport(sport):
+    if template in INDIVIDUAL_TEMPLATE_SPORTS or sport in {canonical_compact(x) for x in KNOWN_INDIVIDUAL_SPORTS}:
         return "Individual Sport"
     return ""
 
 
 def match_supported_sport(sport_text: str) -> Optional[str]:
-    normalized = canonical_compact(sport_text)
-    aliases = {"football": "Soccer", "soccer": "Soccer", "futebol": "Soccer", "water polo": "Water Polo", "waterpolo": "Water Polo", "polo aquatico": "Water Polo", "gym": "Gym", "fitness": "Gym", "academia": "Gym", "musculacao": "Gym", "bodybuilding": "Gym", "weight training": "Gym"}
-    if normalized in aliases:
-        return aliases[normalized]
-    for sport_name in SPORT_POSITIONS:
-        if canonical_compact(sport_name) == normalized:
-            return sport_name
-    return None
+    template, _, _ = resolve_sport_template(sport_text) if "resolve_sport_template" in globals() else (None, sport_text, None)
+    return template
 
 
 def get_frequency_prompt(goal: str, level: str, sport: str = "") -> str:
@@ -407,6 +925,9 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
         flow.append({"key": "team_name", "prompt": "What team do you play for?", "type": "text"})
 
     if gym_mode:
+        flow.append({"key": "gym_sport_focus_flag", "prompt": "Do you want this gym session to be focused on another sport? Answer Yes or No.", "type": "bool"})
+        if bool(profile.get("gym_sport_focus_flag", False)):
+            flow.append({"key": "gym_focus_sport", "prompt": "Which sport should this gym session support?", "type": "text"})
         flow.extend([
             {"key": "goal", "prompt": "What is your main gym goal?", "type": "select", "options": GYM_GOALS},
             {"key": "level", "prompt": "What is your current gym level?", "type": "select", "options": GYM_LEVELS},
@@ -480,11 +1001,18 @@ def reset_training_chat() -> None:
     st.session_state.training_profile = {}
     st.session_state.latest_training_payload = None
     st.session_state.latest_training_summary = None
+    st.session_state.training_entry_mode = None
+    st.session_state.description_mode_waiting = False
 
 
-def start_training_chat() -> None:
+def start_training_chat(entry_mode: str = "guided") -> None:
     reset_training_chat()
     st.session_state.training_chat_started = True
+    st.session_state.training_entry_mode = entry_mode
+    if entry_mode == "describe":
+        st.session_state.description_mode_waiting = True
+        append_bot_message("Describe exactly what kind of training session you want: sport, focus, main goal, duration, equipment, level, pain notes, etc.")
+        return
     append_bot_message("Lets train today?")
     flow = get_question_flow(st.session_state.training_profile)
     if flow:
@@ -582,8 +1110,114 @@ def update_profile_from_answer(key: str, value: object) -> None:
         st.session_state.pain_location = value
     if key == "pain_scale":
         st.session_state.pain_scale = value
+    if key == "gym_focus_sport":
+        st.session_state.gym_focus_sport = value
+    if key == "gym_sport_focus_flag":
+        st.session_state.gym_sport_focus_flag = value
+
+
+def parse_free_description_to_profile(description: str) -> Dict[str, object]:
+    text = normalize_text(description)
+    compact = canonical_compact(text)
+    profile: Dict[str, object] = {"notes": text}
+
+    # Sport detection: choose the first catalog sport/alias mentioned. Fallback uses resolver.
+    detected_sport = ""
+    sport_candidates = list(CORE_SPORT_TEMPLATE_INFO.keys()) + list(SPORT_SIMILARITY_MAP.keys()) + list(SPORT_TEMPLATE_ALIASES.keys())
+    sport_candidates = sorted(sport_candidates, key=lambda s: len(str(s)), reverse=True)
+    for candidate in sport_candidates:
+        c = canonical_compact(candidate)
+        if c and (f" {c} " in f" {compact} " or compact.startswith(c + " ") or compact.endswith(" " + c)):
+            detected_sport = candidate
+            break
+    if not detected_sport:
+        detected_sport = text.split(" ")[0] if text else "General"
+    template, display_sport, similarity = resolve_sport_template(detected_sport)
+    profile["sport"] = display_sport or detected_sport
+    if template == "Gym":
+        profile["sport"] = "Gym"
+    profile["sport_type"] = detect_sport_type(profile["sport"]) or "Individual Sport"
+
+    # Duration
+    duration_match = re.search(r"(\d{2,3})\s*(min|mins|minutes|minute|m)\b", compact)
+    if not duration_match:
+        duration_match = re.search(r"\b(30|35|40|45|50|55|60|70|75|80|90|100|105|120|150|180)\b", compact)
+    profile["duration"] = int(duration_match.group(1)) if duration_match else 75
+    profile["duration"] = max(30, min(180, int(profile["duration"])))
+
+    # Goal/session type
+    if any(w in compact for w in ["hypertrophy", "hypertrofia", "muscle", "massa", "bulk"]):
+        profile["goal"] = "Hypertrophy" if template == "Gym" else "Build fitness"
+    elif any(w in compact for w in ["fat loss", "lose fat", "weight loss", "emagrecer", "cut", "cardio"]):
+        profile["goal"] = "Fat Loss" if template == "Gym" else "Build fitness"
+    elif any(w in compact for w in ["injury", "prehab", "prevent", "pain"]):
+        profile["goal"] = "Injury prevention"
+    elif any(w in compact for w in ["competition", "match", "tournament", "game prep"]):
+        profile["goal"] = "Competition preparation"
+    elif any(w in compact for w in ["learn", "beginner", "new"]):
+        profile["goal"] = "Learn how to play"
+    elif template == "Gym":
+        profile["goal"] = "Athletic Performance" if any(w in compact for w in ["sport", "athletic", "performance", "explosive"] ) else "General Fitness"
+    else:
+        profile["goal"] = "Improve performance"
+
+    if any(w in compact for w in ["technical", "technique", "skill", "skills"]):
+        profile["session_type"] = "Technical Priority"
+    elif any(w in compact for w in ["physical", "conditioning", "strength", "power", "speed", "explosive", "hard", "intense"]):
+        profile["session_type"] = "Intense Session" if template == "Gym" and "intense" in compact else "Physical Priority"
+    elif any(w in compact for w in ["competition week", "match prep", "tournament prep"]):
+        profile["session_type"] = "Competition Week"
+    else:
+        profile["session_type"] = "Balanced Session"
+
+    if any(w in compact for w in ["beginner", "iniciante", "new"]):
+        profile["level"] = "Beginner"
+    elif any(w in compact for w in ["advanced", "elite", "pro", "experienced", "avancado"]):
+        profile["level"] = "Experienced" if template == "Gym" else "Advanced"
+    else:
+        profile["level"] = "Intermediate"
+
+    if any(w in compact for w in ["no equipment", "bodyweight", "minimal", "home"]):
+        profile["equipment_level"] = "Minimal"
+    elif any(w in compact for w in ["full gym", "elite", "complete"]):
+        profile["equipment_level"] = "Elite"
+    elif any(w in compact for w in ["gym", "barbell", "machine", "dumbbell"]):
+        profile["equipment_level"] = "Competitive"
+    else:
+        profile["equipment_level"] = "Medium"
+
+    freq_match = re.search(r"(\d+)\s*(x|times|days)\s*(per|a)?\s*week", compact)
+    profile["weekly_target"] = max(1, min(7, int(freq_match.group(1)))) if freq_match else 3
+    profile["pain_flag"] = any(w in compact for w in ["pain", "hurt", "injury", "discomfort", "dor"])
+    if profile["pain_flag"]:
+        profile["pain_location"] = "Mentioned in free description"
+        profile["pain_scale"] = 3
+    profile["needs_low_impact"] = any(w in compact for w in ["low impact", "easy on joints", "return", "recovery"])
+
+    # Gym focused on another sport: detect "gym for water polo", "gym focused on soccer", etc.
+    if template == "Gym":
+        focus_match = re.search(r"(?:for|focused on|support|to improve)\s+([a-zA-Z\s]{3,40})", text, flags=re.I)
+        if focus_match:
+            focus_text = normalize_text(focus_match.group(1))
+            if focus_text and not is_gym_sport(focus_text):
+                profile["gym_sport_focus_flag"] = True
+                profile["gym_focus_sport"] = focus_text
+    return profile
+
+
+def handle_description_reply(user_text: str) -> None:
+    append_user_message(user_text)
+    profile = parse_free_description_to_profile(user_text)
+    st.session_state.training_profile = profile
+    st.session_state.training_chat_complete = True
+    st.session_state.description_mode_waiting = False
+    append_bot_message("Great. I understood your description and I am generating your session now.")
+    generate_training_from_chat_profile()
 
 def handle_chat_reply(user_text: str) -> None:
+    if st.session_state.get("training_entry_mode") == "describe":
+        handle_description_reply(user_text)
+        return
     flow = get_question_flow(st.session_state.training_profile)
     idx = st.session_state.training_question_index
     if idx >= len(flow):
@@ -756,10 +1390,24 @@ def pain_adjustment_minutes(pain_scale: object) -> int:
 
 
 def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int], Dict[str, object]]:
+    ensure_sportze_libraries_expanded()
     raw_sport = str(profile.get("sport", "")).strip()
-    supported_sport = match_supported_sport(raw_sport)
+    template_sport, display_sport, similarity_info = resolve_sport_template(raw_sport)
+    supported_sport = template_sport
     sport_for_engine = supported_sport or "General"
-    library = SPORT_LIBRARY.get(supported_sport, DEFAULT_GENERAL_LIBRARY)
+
+    gym_focus_template = None
+    gym_focus_display = ""
+    if supported_sport == "Gym" and bool(profile.get("gym_sport_focus_flag", False)):
+        gym_focus_display = str(profile.get("gym_focus_sport", "")).strip()
+        gym_focus_template, _, similarity_info = resolve_sport_template(gym_focus_display)
+        if gym_focus_template and gym_focus_template != "Gym":
+            sport_for_engine = f"Gym for {gym_focus_template}"
+            library = SPORT_LIBRARY.get(f"Gym for {gym_focus_template}", SPORT_LIBRARY.get("Gym", DEFAULT_GENERAL_LIBRARY))
+        else:
+            library = SPORT_LIBRARY.get("Gym", DEFAULT_GENERAL_LIBRARY)
+    else:
+        library = SPORT_LIBRARY.get(supported_sport, DEFAULT_GENERAL_LIBRARY)
 
     session_type = str(profile.get("session_type", "Balanced Session"))
     requested_session_type = session_type
@@ -782,8 +1430,9 @@ def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int]
     if bool(profile.get("pain_flag", False)) or bool(profile.get("needs_low_impact", False)):
         adjusted_duration = max(30, adjusted_duration - pain_adjustment_minutes(profile.get("pain_scale", 3)))
 
-    blueprint = get_blueprint(supported_sport or "default", session_type)
-    blueprint = trim_blueprint_to_target(blueprint, target_exercise_count(supported_sport or "default", adjusted_duration))
+    blueprint_key = "Gym" if supported_sport == "Gym" else (supported_sport or "default")
+    blueprint = get_blueprint(blueprint_key, session_type)
+    blueprint = trim_blueprint_to_target(blueprint, target_exercise_count(blueprint_key, adjusted_duration))
 
     session: List[Exercise] = []
     for category, count in blueprint.items():
@@ -798,11 +1447,22 @@ def build_session(profile: Dict[str, object]) -> Tuple[List[Exercise], List[int]
             )
         )
 
+    if not session:
+        library = DEFAULT_GENERAL_LIBRARY
+        for category, count in blueprint.items():
+            session.extend(choose_exercises_for_category(library.get(category, []), count, position, level, season_phase, primary_focus))
+
     block_minutes = allocate_block_minutes(session, adjusted_duration, session_type, goal)
 
     meta = {
         "supported_sport": supported_sport,
+        "display_sport": display_sport or raw_sport,
         "sport_for_engine": sport_for_engine,
+        "similarity_template_used": similarity_info.get("template") if similarity_info else None,
+        "similarity_reason": similarity_info.get("why") if similarity_info else None,
+        "similarity_adaptation": similarity_info.get("adaptation") if similarity_info else None,
+        "gym_focus_sport": gym_focus_display,
+        "gym_focus_template": gym_focus_template,
         "adjusted_duration": adjusted_duration,
         "session_type": requested_session_type if requested_session_type == "Intense Session" else session_type,
         "engine_session_type": session_type,
@@ -1090,6 +1750,14 @@ def render_current_session(payload: Dict[str, object]) -> None:
     if meta.get("primary_focus_inferred"):
         caption_bits.append(f"Training focus inferred: {meta.get('primary_focus_inferred')}")
     st.caption(" | ".join(caption_bits))
+    if meta.get("similarity_template_used"):
+        st.info(
+            f"Sportze.AI adaptation mode: {profile.get('sport')} is being trained with the closest template: "
+            f"{meta.get('similarity_template_used')}. Reason: {meta.get('similarity_reason')}. "
+            f"Adaptation: {meta.get('similarity_adaptation')}."
+        )
+    if meta.get("gym_focus_template"):
+        st.info(f"Gym sport-focus mode: this gym session is adapted for {meta.get('gym_focus_sport')} using the {meta.get('gym_focus_template')} template.")
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Planned minutes", meta.get("adjusted_duration"))
