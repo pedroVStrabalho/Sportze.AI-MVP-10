@@ -23,6 +23,7 @@ from training_generator_section import render_training_generator_section
 from video_review_section import render_video_review_section
 from physio_section import render_physio_section
 from counseling_section import render_counseling_section
+from explore_section import render_explore_section
 
 
 # =============================================================================
@@ -68,14 +69,16 @@ SECTIONS = [
     "Video Review",
     "Counseling",
     "Physio",
+    "Explore",
 ]
 
 # No emojis in module labels. Keep this as a dict so .get() is always safe.
 SECTION_ICONS: Dict[str, str] = {
-    "Training Generator": "",
-    "Video Review": "",
-    "Counseling": "",
-    "Physio": "",
+    "Training Generator": "🏋️",
+    "Video Review": "🎥",
+    "Counseling": "🧭",
+    "Physio": "🩺",
+    "Explore": "🌍",
 }
 
 SECTION_ROUTES = {
@@ -83,6 +86,7 @@ SECTION_ROUTES = {
     "Video Review": "video",
     "Counseling": "counseling",
     "Physio": "physio",
+    "Explore": "explore",
 }
 
 ROUTE_TO_SECTION = {value: key for key, value in SECTION_ROUTES.items()}
@@ -185,7 +189,7 @@ st.set_page_config(
     page_title=APP_TITLE,
     page_icon="S",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -390,7 +394,7 @@ def init_state() -> None:
         "section_visit_counted": {},
         "last_counted_training_signature": "",
         "last_saved_at": "",
-        "ui_compact_mode": True,
+        "ui_compact_mode": False,
         "show_local_email_login": False,
     }
     for key, value in defaults.items():
@@ -742,7 +746,25 @@ def inject_css() -> None:
     }
 
     [data-testid="stSidebar"] {
-        display: none;
+        background: rgba(5,8,22,0.98);
+        border-right: 1px solid rgba(255,255,255,0.10);
+    }
+
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1.2rem;
+    }
+
+    .sportze-sidebar-title {
+        font-weight: 900;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.15rem;
+    }
+
+    .sportze-sidebar-caption {
+        opacity: 0.64;
+        font-size: 0.78rem;
+        margin-bottom: 0.9rem;
     }
 
     .sportze-topbar {
@@ -1006,8 +1028,7 @@ def render_login_popover() -> None:
 
 
 def render_topbar() -> None:
-    user = current_auth_user()
-    left, middle, right = st.columns([1.35, 2.2, 1.2], vertical_alignment="center")
+    left, right = st.columns([3.2, 1.1], vertical_alignment="center")
 
     with left:
         st.markdown(
@@ -1022,9 +1043,6 @@ def render_topbar() -> None:
             """,
             unsafe_allow_html=True,
         )
-
-    with middle:
-        render_top_navigation()
 
     with right:
         render_login_popover()
@@ -1337,6 +1355,8 @@ def render_active_section() -> None:
         render_counseling_page()
     elif section == "Physio":
         render_physio_page()
+    elif section == "Explore":
+        render_explore_section()
     else:
         st.warning("Unknown section selected.")
         set_active_section(DEFAULT_SECTION)
@@ -1382,26 +1402,50 @@ def expose_profile_for_modules() -> None:
 # =============================================================================
 # CLEAN SIDEBAR
 # =============================================================================
-def render_minimal_sidebar_escape_hatch() -> None:
+def render_side_gallery_navigation() -> None:
     """
-    The user asked to remove the sidebar clutter. The sidebar is hidden by CSS.
-    This function keeps a developer/debug escape hatch only if explicitly enabled.
+    Clean section gallery. Streamlit's native sidebar arrow lets the user open
+    and close the rail. The compact toggle switches labels to emoji-only mode.
     """
-    show_debug = bool_secret("SPORTZE_SHOW_DEBUG_SIDEBAR", False)
-    if not show_debug:
-        return
-
     with st.sidebar:
-        st.markdown("### Debug")
-        st.json(
-            {
-                "active_section": st.session_state.get("active_section"),
-                "logged_in": current_auth_user().logged_in,
-                "email": st.session_state.get("profile_email"),
-                "profile_loaded": st.session_state.get("profile_loaded"),
-                "last_saved_at": st.session_state.get("last_saved_at"),
-            }
+        st.markdown("<div class='sportze-sidebar-title'>Sportze.AI</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sportze-sidebar-caption'>Section gallery</div>", unsafe_allow_html=True)
+
+        compact = st.toggle(
+            "Emoji-only mode",
+            value=bool(st.session_state.get("ui_compact_mode", False)),
+            key="side_gallery_compact_toggle",
         )
+        st.session_state.ui_compact_mode = compact
+
+        current = st.session_state.get("active_section", DEFAULT_SECTION)
+        for section in SECTIONS:
+            icon = SECTION_ICONS.get(section, "•")
+            label = icon if compact else f"{icon}  {section}"
+            if st.button(
+                label,
+                use_container_width=True,
+                type="primary" if current == section else "secondary",
+                key=f"side_gallery_{SECTION_ROUTES[section]}",
+            ):
+                set_active_section(section)
+                st.rerun()
+
+        st.divider()
+        render_plan_popover()
+
+        show_debug = bool_secret("SPORTZE_SHOW_DEBUG_SIDEBAR", False)
+        if show_debug:
+            with st.expander("Debug", expanded=False):
+                st.json(
+                    {
+                        "active_section": st.session_state.get("active_section"),
+                        "logged_in": current_auth_user().logged_in,
+                        "email": st.session_state.get("profile_email"),
+                        "profile_loaded": st.session_state.get("profile_loaded"),
+                        "last_saved_at": st.session_state.get("last_saved_at"),
+                    }
+                )
 
 
 # =============================================================================
@@ -1423,13 +1467,9 @@ def main() -> None:
     inject_css()
     process_google_oauth_callback()
     expose_profile_for_modules()
-    render_minimal_sidebar_escape_hatch()
+    render_side_gallery_navigation()
 
     render_topbar()
-
-    extra_left, extra_right = st.columns([5, 1], vertical_alignment="center")
-    with extra_right:
-        render_plan_popover()
 
     render_default_training_hero()
     render_auth_status_message()
