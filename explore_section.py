@@ -23,7 +23,7 @@ import streamlit as st
 SPORTS = {
     "Water Polo": {
         "tagline": "Explosive swimming, contact, strategy, and tactical execution in deep water.",
-        "image": "https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://www.google.com/imgres?q=water%20polo&imgurl=https%3A%2F%2Fsrsport.com%2Fproduct_images%2Fuploaded_images%2Fman-playing-water-polo.jpg&imgrefurl=https%3A%2F%2Fsrsport.com%2Fblog%2Fwater-polo-suits-vs-swimsuits-key-differences-in-fit-fabric-performance%2F%3Fsrsltid%3DAfmBOoo2x9l4cpM57WvmmemctgvOoldlr39XomEDIu7koWO6zuSQ8deE&docid=yHjOsejDdnCZeM&tbnid=7NKfLaJF8Wgh0M&vet=12ahUKEwiQ7ubSvOiUAxW0G7kGHbWSPBMQnPAOegUIhwEQAQ..i&w=1000&h=573&hcb=2&ved=2ahUKEwiQ7ubSvOiUAxW0G7kGHbWSPBMQnPAOegUIhwEQAQ",
         "mini_definition": (
             "A high-intensity aquatic team sport where athletes swim, pass, wrestle for position, defend, "
             "and shoot while staying afloat the entire time."
@@ -67,7 +67,7 @@ SPORTS = {
     },
     "Mountain Biking": {
         "tagline": "High-speed riding through rough terrain, steep descents, rocks, mud, forests, and mountains.",
-        "image": "https://images.unsplash.com/photo-1544191696-102dbdaeeaa5?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://www.google.com/imgres?q=mountain%20biking&imgurl=https%3A%2F%2Fwww.exploresquamish.com%2Fsite%2Fassets%2Ffiles%2F22494%2Fslab_riding_squamish.2000x1163.webp&imgrefurl=https%3A%2F%2Fwww.exploresquamish.com%2Fthings-to-do%2Factivities-adventures%2Fmountain-biking%2F&docid=9EkbcPsG9A3hMM&tbnid=Ml5g28rw0FdJIM&vet=12ahUKEwjFro6CveiUAxVUGbkGHYI-H28QnPAOegQIGxAB..i&w=1440&h=838&hcb=2&ved=2ahUKEwjFro6CveiUAxVUGbkGHYI-H28QnPAOegQIGxAB",
         "mini_definition": (
             "An off-road cycling discipline where riders control bikes across trails, climbs, jumps, descents, and technical obstacles."
         ),
