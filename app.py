@@ -72,13 +72,13 @@ SECTIONS = [
     "Explore",
 ]
 
-# No emojis in module labels. Keep this as a dict so .get() is always safe.
+# Module labels stay text-only for a clean interface.
 SECTION_ICONS: Dict[str, str] = {
-    "Training Generator": "🏋️",
-    "Video Review": "🎥",
-    "Counseling": "🧭",
-    "Physio": "🩺",
-    "Explore": "🌍",
+    "Training Generator": "",
+    "Video Review": "",
+    "Counseling": "",
+    "Physio": "",
+    "Explore": "",
 }
 
 SECTION_ROUTES = {
@@ -394,7 +394,6 @@ def init_state() -> None:
         "section_visit_counted": {},
         "last_counted_training_signature": "",
         "last_saved_at": "",
-        "ui_compact_mode": False,
         "show_local_email_login": False,
     }
     for key, value in defaults.items():
@@ -733,6 +732,42 @@ def inject_css() -> None:
         --sportze-card-strong: rgba(255,255,255,0.09);
         --sportze-border: rgba(255,255,255,0.13);
         --sportze-text-soft: rgba(255,255,255,0.72);
+        color-scheme: dark;
+    }
+
+
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background: #050816 !important;
+        color: #f8fafc !important;
+    }
+
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    [data-testid="stStatusWidget"],
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        color: #f8fafc !important;
+    }
+
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stText"],
+    label,
+    p,
+    span,
+    div {
+        color: inherit;
+    }
+
+    input,
+    textarea,
+    [data-baseweb="select"] > div {
+        background-color: rgba(255,255,255,0.07) !important;
+        color: #f8fafc !important;
+        border-color: rgba(255,255,255,0.16) !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #f8fafc;
     }
 
     .block-container {
@@ -935,10 +970,10 @@ def render_google_login_button() -> None:
         st.warning("Google login is not configured yet.")
         with st.expander("Google login setup needed", expanded=False):
             st.code(
-                """527430452650-a1udlafdtn8jp51f8t1jfnq9reknvntb.apps.googleusercontent.com
-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
-https://sportze-ai-mvp-10.onrender.com
-true""",
+                """GOOGLE_CLIENT_ID = "your-google-client-id"
+GOOGLE_CLIENT_SECRET = "your-google-client-secret"
+GOOGLE_REDIRECT_URI = "https://your-app-url.onrender.com"
+AUTH_ALLOW_EMAIL_FALLBACK = true""",
                 language="toml",
             )
 
@@ -1068,9 +1103,7 @@ def render_top_navigation() -> None:
 
     cols = st.columns(len(SECTIONS))
     for idx, section in enumerate(SECTIONS):
-        icons = SECTION_ICONS if isinstance(SECTION_ICONS, dict) else {}
-        icon = icons.get(section, "")
-        label = f"{icon} {section}".strip()
+        label = section
         button_type = "primary" if current == section else "secondary"
         with cols[idx]:
             if st.button(label, use_container_width=True, type=button_type, key=f"topnav_{SECTION_ROUTES[section]}"):
@@ -1404,24 +1437,16 @@ def expose_profile_for_modules() -> None:
 # =============================================================================
 def render_side_gallery_navigation() -> None:
     """
-    Clean section gallery. Streamlit's native sidebar arrow lets the user open
-    and close the rail. The compact toggle switches labels to emoji-only mode.
+    Clean text-only section gallery. Streamlit's native sidebar arrow lets the
+    user open and close the rail.
     """
     with st.sidebar:
         st.markdown("<div class='sportze-sidebar-title'>Sportze.AI</div>", unsafe_allow_html=True)
         st.markdown("<div class='sportze-sidebar-caption'>Section gallery</div>", unsafe_allow_html=True)
 
-        compact = st.toggle(
-            "Emoji-only mode",
-            value=bool(st.session_state.get("ui_compact_mode", False)),
-            key="side_gallery_compact_toggle",
-        )
-        st.session_state.ui_compact_mode = compact
-
         current = st.session_state.get("active_section", DEFAULT_SECTION)
         for section in SECTIONS:
-            icon = SECTION_ICONS.get(section, "•")
-            label = icon if compact else f"{icon}  {section}"
+            label = section
             if st.button(
                 label,
                 use_container_width=True,
