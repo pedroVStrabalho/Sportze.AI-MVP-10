@@ -11,6 +11,8 @@ import streamlit as st
 # - Photo card for each sport
 # - Clickable sport buttons that open one detailed sport page
 # - Official global organization/platform link for each sport
+# - Smart Discoveries area prepared for future API sport suggestions
+# - Small sports question chat area prepared for future AI implementation
 #
 # Sidebar note:
 # The uploaded file does not contain your app.py sidebar code or the old
@@ -23,7 +25,7 @@ import streamlit as st
 SPORTS = {
     "Water Polo": {
         "tagline": "Explosive swimming, contact, strategy, and tactical execution in deep water.",
-        "image": "https://www.google.com/imgres?q=water%20polo&imgurl=https%3A%2F%2Fsrsport.com%2Fproduct_images%2Fuploaded_images%2Fman-playing-water-polo.jpg&imgrefurl=https%3A%2F%2Fsrsport.com%2Fblog%2Fwater-polo-suits-vs-swimsuits-key-differences-in-fit-fabric-performance%2F%3Fsrsltid%3DAfmBOoo2x9l4cpM57WvmmemctgvOoldlr39XomEDIu7koWO6zuSQ8deE&docid=yHjOsejDdnCZeM&tbnid=7NKfLaJF8Wgh0M&vet=12ahUKEwiQ7ubSvOiUAxW0G7kGHbWSPBMQnPAOegUIhwEQAQ..i&w=1000&h=573&hcb=2&ved=2ahUKEwiQ7ubSvOiUAxW0G7kGHbWSPBMQnPAOegUIhwEQAQ",
+        "image": "https://wp.dailybruin.com/images/2025/12/A.jpg",
         "mini_definition": (
             "A high-intensity aquatic team sport where athletes swim, pass, wrestle for position, defend, "
             "and shoot while staying afloat the entire time."
@@ -67,7 +69,7 @@ SPORTS = {
     },
     "Mountain Biking": {
         "tagline": "High-speed riding through rough terrain, steep descents, rocks, mud, forests, and mountains.",
-        "image": "https://www.google.com/imgres?q=mountain%20biking&imgurl=https%3A%2F%2Fwww.exploresquamish.com%2Fsite%2Fassets%2Ffiles%2F22494%2Fslab_riding_squamish.2000x1163.webp&imgrefurl=https%3A%2F%2Fwww.exploresquamish.com%2Fthings-to-do%2Factivities-adventures%2Fmountain-biking%2F&docid=9EkbcPsG9A3hMM&tbnid=Ml5g28rw0FdJIM&vet=12ahUKEwjFro6CveiUAxVUGbkGHYI-H28QnPAOegQIGxAB..i&w=1440&h=838&hcb=2&ved=2ahUKEwjFro6CveiUAxVUGbkGHYI-H28QnPAOegQIGxAB",
+        "image": "https://www.mountainbikingbc.ca/site/assets/files/1996/230728silverstar-bcbp5336.1350x760p65x43.webp",
         "mini_definition": (
             "An off-road cycling discipline where riders control bikes across trails, climbs, jumps, descents, and technical obstacles."
         ),
@@ -101,7 +103,7 @@ SPORTS = {
     },
     "Mountaineering / Ice Climbing": {
         "tagline": "Technical climbing in mountains, snow, ice, altitude, and severe weather.",
-        "image": "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://coloradomountainschool.com/wp-content/uploads/2012/12/Intro.to_.Mountaineering.Course.Colorado.Mountain.School.Rocky_.Mountain.National.Park_.Crampon.Use_.jpg",
         "mini_definition": "A mountain sport involving ascent through rock, snow, glaciers, and ice with technical equipment.",
         "definition": (
             "Mountaineering and ice climbing combine adventure, endurance, technical skill, and environmental judgment. Athletes may cross "
@@ -154,7 +156,7 @@ SPORTS = {
     },
     "Big Wave Surfing": {
         "tagline": "Surfing giant waves where courage and ocean knowledge become survival skills.",
-        "image": "https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://img.redbull.com/images/q_auto,f_auto/redbullcom/2023/2/4/kghsfuruweblicdjmcfr/almost-eddie-swell-justine-dupont",
         "mini_definition": "An extreme surfing discipline focused on riding massive ocean waves that can reach life-threatening size.",
         "definition": (
             "Big wave surfing is one of the most extreme ocean sports. Athletes ride waves that can reach enormous heights, often at famous breaks "
@@ -168,7 +170,7 @@ SPORTS = {
     },
     "Kitesurfing": {
         "tagline": "Wind-powered board riding with jumps, speed, and aerial control.",
-        "image": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://d24qm9hzk3dxrt.cloudfront.net/blog-media/samui-prime-winter-kitesurfing-season.jpg",
         "mini_definition": "A water sport where athletes use a kite and board to ride across water and perform jumps.",
         "definition": (
             "Kitesurfing, also called kiteboarding, uses a large controllable kite to pull an athlete across the water on a board. It is picturesque "
@@ -181,7 +183,7 @@ SPORTS = {
     },
     "Whitewater Kayaking": {
         "tagline": "Navigating powerful river rapids with precision, courage, and reflexes.",
-        "image": "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://bendmagazine.com/wp-content/uploads/2023/02/photo-Austin-White.jpg",
         "mini_definition": "A river sport where kayakers descend rapids, drops, waves, and technical whitewater channels.",
         "definition": (
             "Whitewater kayaking is performed on fast-moving rivers, rapids, waterfalls, and artificial courses. Athletes use a small kayak and paddle "
@@ -194,7 +196,7 @@ SPORTS = {
     },
     "Rowing": {
         "tagline": "Synchronized power, endurance, rhythm, and technical precision on water.",
-        "image": "https://images.unsplash.com/photo-1508519829430-40f7d6bfdb69?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://images.sidearmdev.com/crop?url=https%3A%2F%2Fdxbhsrqyrr690.cloudfront.net%2Fsidearm.nextgen.sites%2Fsacredheartpioneers.com%2Fimages%2F2026%2F6%2F1%2FIMG_0842.JPG&width=768&height=432&type=webp",
         "mini_definition": "A boat-racing sport where athletes use oars to move shells across water as fast and efficiently as possible.",
         "definition": (
             "Rowing is a water racing sport in which athletes propel narrow boats using oars. It can be performed in single sculls, pairs, fours, eights, "
@@ -207,7 +209,7 @@ SPORTS = {
     },
     "Sailing": {
         "tagline": "Racing with wind, water, tactics, weather, and boat handling.",
-        "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://388cb386b0d7908468c4-d7f86a40e40caa5d570fbd7e2287a9d8.ssl.cf3.rackcdn.com/images/2025/range-of-boats-for-sailing.jpg",
         "mini_definition": "A wind-powered racing sport where sailors control boats using sails, tactics, and weather knowledge.",
         "definition": (
             "Sailing is a sport where athletes race boats using wind power. It can happen in small dinghies, Olympic classes, ocean yachts, and high-performance "
@@ -220,7 +222,7 @@ SPORTS = {
     },
     "Modern Pentathlon": {
         "tagline": "A multi-discipline Olympic-style challenge of speed, skill, precision, and adaptability.",
-        "image": "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://i.cbc.ca/ais/1.3700446,1469800852000/full/max/0/default.jpg?im=Crop%2Crect%3D%280%2C0%2C1180%2C663%29%3B",
         "mini_definition": "A combined sport traditionally involving fencing, swimming, obstacle-style movement, running, and shooting.",
         "definition": (
             "Modern pentathlon is a multi-sport discipline designed to test a complete athlete. It includes fencing, swimming, running, shooting, and modern "
@@ -233,7 +235,7 @@ SPORTS = {
     },
     "Equestrian Eventing": {
         "tagline": "A horse-and-rider test combining dressage, cross-country, and show jumping.",
-        "image": "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/5/56/Badminton_horse_trials_open_ditch_jump.jpg",
         "mini_definition": "An equestrian discipline where horse and rider compete in control, endurance, jumping, and cross-country courage.",
         "definition": (
             "Equestrian eventing is a demanding horse sport made of dressage, cross-country, and show jumping. It is picturesque because competitions often "
@@ -246,7 +248,7 @@ SPORTS = {
     },
     "Freediving": {
         "tagline": "Diving deep underwater on a single breath with calm, control, and physiology.",
-        "image": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://www.sapiens.org/app/uploads/2024/04/Freedivers-descent.jpeg",
         "mini_definition": "An underwater discipline where athletes dive without breathing equipment, relying on one breath.",
         "definition": (
             "Freediving is the art and sport of diving underwater on a single breath. It can involve depth, distance, or time-based disciplines. The sport is "
@@ -259,7 +261,7 @@ SPORTS = {
     },
     "Paragliding": {
         "tagline": "Foot-launched flight using air currents, mountains, thermals, and judgment.",
-        "image": "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://res.cloudinary.com/manawa/image/private/f_auto,c_limit,w_3840,q_auto/tja1rmqugnuewe0pvgu7",
         "mini_definition": "An air sport where pilots fly lightweight gliders launched from hills, mountains, or cliffs.",
         "definition": (
             "Paragliding is a free-flight sport where pilots launch from slopes with a fabric wing and use air currents to stay aloft. It is picturesque because "
@@ -272,7 +274,7 @@ SPORTS = {
     },
     "Aerobatic Flying": {
         "tagline": "Precision aircraft control through loops, rolls, spins, and high-G maneuvers.",
-        "image": "https://images.unsplash.com/photo-1529074963764-98f45c47344b?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://abbotsfordairshow.com/wp-content/uploads/2024/04/Kyle-Fowler-2-1024x683.jpg",
         "mini_definition": "An aviation sport where pilots perform controlled aerial maneuvers with extreme precision.",
         "definition": (
             "Aerobatic flying is a discipline where pilots perform complex maneuvers such as rolls, loops, hammerheads, spins, and sequences judged for precision. "
@@ -285,7 +287,7 @@ SPORTS = {
     },
     "Orienteering": {
         "tagline": "Running through terrain while solving a navigation puzzle at speed.",
-        "image": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://www.ursusadventures.it/wp-content/uploads/2020/03/orienteering1.jpg",
         "mini_definition": "A navigation race where athletes use a map and compass to find checkpoints across terrain.",
         "definition": (
             "Orienteering is a sport where athletes race through forests, parks, mountains, or urban terrain using a detailed map and compass. The winner is not "
@@ -314,6 +316,30 @@ SPORTS = {
 
 
 FEATURED_SPORTS = ["Water Polo", "Triathlon", "Mountain Biking"]
+
+
+SIMILAR_SPORTS = {
+    "Water Polo": ["Swimming", "Handball", "Rowing"],
+    "Triathlon": ["Duathlon", "Open-water swimming", "Ultra-Trail Running"],
+    "Mountain Biking": ["Cyclocross", "Downhill MTB", "Ultra-Trail Running"],
+    "Sport Climbing": ["Bouldering", "Mountaineering / Ice Climbing", "Gymnastics"],
+    "Mountaineering / Ice Climbing": ["Sport Climbing", "Ski Mountaineering", "Orienteering"],
+    "Alpine Skiing": ["Ski Cross", "Ski Mountaineering", "Snowboarding"],
+    "Ski Mountaineering": ["Alpine Skiing", "Mountaineering / Ice Climbing", "Ultra-Trail Running"],
+    "Surfing": ["Big Wave Surfing", "Kitesurfing", "Stand-up paddleboarding"],
+    "Big Wave Surfing": ["Surfing", "Freediving", "Kitesurfing"],
+    "Kitesurfing": ["Windsurfing", "Surfing", "Sailing"],
+    "Whitewater Kayaking": ["Canoe slalom", "Rafting", "Rowing"],
+    "Rowing": ["Canoe sprint", "Water Polo", "Sailing"],
+    "Sailing": ["Kitesurfing", "Windsurfing", "Rowing"],
+    "Modern Pentathlon": ["Triathlon", "Fencing", "Obstacle racing"],
+    "Equestrian Eventing": ["Show jumping", "Dressage", "Modern Pentathlon"],
+    "Freediving": ["Spearfishing", "Big Wave Surfing", "Open-water swimming"],
+    "Paragliding": ["Hang gliding", "Aerobatic Flying", "Skydiving"],
+    "Aerobatic Flying": ["Paragliding", "Glider racing", "Air racing"],
+    "Orienteering": ["Adventure racing", "Ultra-Trail Running", "Mountain Biking"],
+    "Ultra-Trail Running": ["Mountain Biking", "Orienteering", "Ski Mountaineering"],
+}
 
 
 def _slug(name: str) -> str:
@@ -418,6 +444,34 @@ def _inject_explore_css() -> None:
         border: 1px solid rgba(255,255,255,0.13);
     }
 
+
+    .smart-discovery-box {
+        border: 1px solid rgba(110,231,255,0.22);
+        border-radius: 24px;
+        padding: 1.05rem 1.1rem;
+        background: rgba(110,231,255,0.055);
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .smart-discovery-label {
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(110,231,255,0.88);
+        margin-bottom: 0.35rem;
+    }
+
+    .sports-chat-box {
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 24px;
+        padding: 1.05rem 1.1rem;
+        background: rgba(255,255,255,0.045);
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
     .stButton button {
         border-radius: 999px;
         font-weight: 750;
@@ -477,6 +531,141 @@ def _render_featured_discover() -> None:
         with col:
             _sport_card(sport_name, featured=True)
 
+    _render_smart_discoveries()
+    _render_sports_chat()
+
+
+
+def _render_smart_discoveries() -> None:
+    st.markdown("<div class='explore-section-title'>Smart Discoveries</div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+<div class="smart-discovery-box">
+    <div class="smart-discovery-label">Rule-based now, API-ready later</div>
+    <h3 style="margin: 0 0 0.35rem 0;">Find similar sports</h3>
+    <p style="color: rgba(255,255,255,0.76); line-height: 1.55; margin: 0;">
+        For now, Sportze.AI identifies similar sports using a simple internal map, like the Training Generator logic.
+        Later, the API can replace this with personalized recommendations using goals, schedule, injury history, level,
+        location, personality, facilities, and performance data.
+    </p>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    selected_sport = st.selectbox(
+        "Choose a sport you already like",
+        list(SPORTS.keys()),
+        key="smart_discovery_selected_sport",
+    )
+
+    similar_sports = SIMILAR_SPORTS.get(selected_sport, [])
+    if similar_sports:
+        st.markdown(f"**Because you chose {selected_sport}, you might also like:**")
+        cols = st.columns(len(similar_sports))
+        for col, similar in zip(cols, similar_sports):
+            with col:
+                st.markdown(
+                    f"""
+<div class="explore-card">
+    <h3>{similar}</h3>
+    <p>Similar movement style, environment, endurance profile, technical demand, or athlete mindset.</p>
+</div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+def _answer_sports_question(question: str) -> str:
+    clean_question = question.strip()
+    if not clean_question:
+        return ""
+
+    return (
+        "This chat is prepared for a future AI sports assistant. "
+        "When the API is connected, it can answer this kind of sports question with personalized training, rules, "
+        "sport comparisons, injury-aware suggestions, athlete pathways, and competition guidance."
+    )
+
+
+def _render_sports_chat() -> None:
+    st.markdown(
+        """
+<div class="sports-chat-box">
+    <h3 style="margin: 0 0 0.35rem 0;">Any questions?</h3>
+    <p style="color: rgba(255,255,255,0.74); line-height: 1.5; margin: 0;">
+        Ask anything related to sports. This is ready to be connected to an AI API later.
+    </p>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    question = st.text_input(
+        "Write your sports question here",
+        key="explore_sports_question",
+        placeholder="Example: Which sport should I try if I like endurance and water?",
+    )
+
+    if st.button("Ask", key="explore_ask_button", use_container_width=True):
+        st.session_state.explore_sports_answer = _answer_sports_question(question)
+
+    answer = st.session_state.get("explore_sports_answer", "")
+    if answer:
+        st.info(answer)
+
+
+def _summarize_forgotten_sport(sport_name: str) -> str:
+    clean_name = sport_name.strip()
+    if not clean_name:
+        return ""
+
+    lower_name = clean_name.lower()
+    if any(word in lower_name for word in ["polo", "swim", "diving", "surf", "kayak", "sailing", "water"]):
+        theme = "water control, endurance, technique, and environmental reading"
+    elif any(word in lower_name for word in ["ski", "snow", "ice", "mountain", "climb", "trail"]):
+        theme = "mountain skill, endurance, risk control, and technical movement"
+    elif any(word in lower_name for word in ["bike", "cycling", "run", "triathlon", "race"]):
+        theme = "aerobic capacity, pacing, terrain adaptation, and efficient movement"
+    elif any(word in lower_name for word in ["fly", "gliding", "air", "aero", "parachute"]):
+        theme = "judgment, spatial awareness, equipment control, and safety discipline"
+    else:
+        theme = "specific technique, athletic decision-making, discipline, and structured progression"
+
+    return (
+        f"{clean_name} could be added as a future Sportze.AI Explore sport. "
+        f"A full API version would generate a card with photo, official body, training demands, difficulty level, "
+        f"and athlete pathway. Based on the name, the first summary would focus on {theme}."
+    )
+
+
+def _render_forgotten_sport_chat() -> None:
+    st.markdown(
+        """
+<div class="sports-chat-box">
+    <h3 style="margin: 0 0 0.35rem 0;">Any sport we forgot?</h3>
+    <p style="color: rgba(255,255,255,0.74); line-height: 1.5; margin: 0;">
+        Type a sport that is not in the catalog. For now, Sportze.AI creates a small placeholder summary; later,
+        the API can build a complete new sport card automatically.
+    </p>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    forgotten_sport = st.text_input(
+        "Suggest another sport",
+        key="explore_forgotten_sport",
+        placeholder="Example: Lacrosse, underwater hockey, parkour, biathlon...",
+    )
+
+    if st.button("Generate small summary", key="explore_forgotten_sport_button", use_container_width=True):
+        st.session_state.explore_forgotten_sport_summary = _summarize_forgotten_sport(forgotten_sport)
+
+    summary = st.session_state.get("explore_forgotten_sport_summary", "")
+    if summary:
+        st.info(summary)
+
 
 def _render_catalog() -> None:
     top_left, top_right = st.columns([1, 1])
@@ -502,6 +691,8 @@ def _render_catalog() -> None:
         for col, sport_name in zip(cols, sport_names[i : i + 3]):
             with col:
                 _sport_card(sport_name)
+
+    _render_forgotten_sport_chat()
 
 
 def _render_detail() -> None:
