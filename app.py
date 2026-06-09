@@ -24,6 +24,7 @@ from video_review_section import render_video_review_section
 from physio_section import render_physio_section
 from counseling_section import render_counseling_section
 from explore_section import render_explore_section
+from Organizations import render_organizations_section
 
 
 # =============================================================================
@@ -70,6 +71,7 @@ SECTIONS = [
     "Counseling",
     "Physio",
     "Explore",
+    "Organizations",
 ]
 
 # Module labels stay text-only for a clean interface.
@@ -79,6 +81,7 @@ SECTION_ICONS: Dict[str, str] = {
     "Counseling": "",
     "Physio": "",
     "Explore": "",
+    "Organizations": "",
 }
 
 SECTION_ROUTES = {
@@ -87,6 +90,7 @@ SECTION_ROUTES = {
     "Counseling": "counseling",
     "Physio": "physio",
     "Explore": "explore",
+    "Organizations": "organizations",
 }
 
 ROUTE_TO_SECTION = {value: key for key, value in SECTION_ROUTES.items()}
@@ -395,6 +399,8 @@ def init_state() -> None:
         "last_counted_training_signature": "",
         "last_saved_at": "",
         "show_local_email_login": False,
+        "user_role": "",
+        "role_gate_completed": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -952,6 +958,49 @@ def inject_css() -> None:
         margin-bottom: 1.2rem;
     }
 
+
+    .sportze-role-wrap {
+        max-width: 1050px;
+        margin: 3.2rem auto 1.5rem auto;
+        text-align: center;
+    }
+
+    .sportze-role-wrap h1 {
+        font-size: clamp(2.4rem, 5.5vw, 4.7rem);
+        line-height: 0.95;
+        letter-spacing: -0.06em;
+        margin-bottom: 0.7rem;
+        font-weight: 900;
+    }
+
+    .sportze-role-wrap p {
+        opacity: 0.74;
+        font-size: 1.05rem;
+        margin-bottom: 1.3rem;
+    }
+
+    .sportze-role-card {
+        min-height: 165px;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 28px;
+        padding: 1.25rem;
+        background: linear-gradient(145deg, rgba(255,255,255,0.085), rgba(255,255,255,0.035));
+        text-align: left;
+        margin-bottom: 0.8rem;
+    }
+
+    .sportze-role-card h3 {
+        margin: 0 0 0.45rem 0;
+        font-size: 1.45rem;
+        letter-spacing: -0.03em;
+    }
+
+    .sportze-role-card p {
+        margin: 0;
+        font-size: 0.96rem;
+        opacity: 0.74;
+    }
+
 </style>
         """,
         unsafe_allow_html=True,
@@ -1083,12 +1132,100 @@ def render_topbar() -> None:
         render_login_popover()
 
 
+
+
+# =============================================================================
+# FIRST-SCREEN ROLE GATE
+# =============================================================================
+def get_visible_sections() -> List[str]:
+    role = st.session_state.get("user_role", "")
+    if role == "coach":
+        return ["Organizations"]
+    return [section for section in SECTIONS if section != "Organizations"]
+
+
+def set_user_role(role: str) -> None:
+    if role not in {"coach", "athlete"}:
+        role = "athlete"
+    st.session_state.user_role = role
+    st.session_state.role_gate_completed = True
+    if role == "coach":
+        st.session_state.active_section = "Organizations"
+        set_query_route("Organizations")
+    else:
+        st.session_state.active_section = DEFAULT_SECTION
+        set_query_route(DEFAULT_SECTION)
+    add_audit_event("role_selected", {"role": role})
+
+
+def render_role_gate() -> bool:
+    """
+    Returns True when the app should continue. Returns False when the first
+    screen is still asking whether the user is a coach or an athlete.
+    """
+    if st.session_state.get("role_gate_completed") and st.session_state.get("user_role") in {"coach", "athlete"}:
+        return True
+
+    st.markdown(
+        """
+<div class="sportze-role-wrap">
+    <h1>Are you a coach or an athlete?</h1>
+    <p>Choose how you want to enter Sportze.AI. Coaches go to the organization dashboard. Athletes enter the normal training app.</p>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    left, right = st.columns(2, gap="large")
+    with left:
+        st.markdown(
+            """
+<div class="sportze-role-card">
+    <h3>Coach</h3>
+    <p>You train athletes of your own and want a place to manage them more easily.</p>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Enter as coach", type="primary", use_container_width=True, key="role_coach_button"):
+            set_user_role("coach")
+            st.rerun()
+
+    with right:
+        st.markdown(
+            """
+<div class="sportze-role-card">
+    <h3>Athlete</h3>
+    <p>You train a sport or want to start training any sport in the world.</p>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Enter as athlete", type="primary", use_container_width=True, key="role_athlete_button"):
+            set_user_role("athlete")
+            st.rerun()
+
+    st.caption("You can change this later from the sidebar.")
+    return False
+
+
+def render_role_switcher() -> None:
+    current = st.session_state.get("user_role", "")
+    label = "Coach" if current == "coach" else "Athlete" if current == "athlete" else "Not selected"
+    st.caption(f"Current mode: {label}")
+    if st.button("Change coach/athlete mode", use_container_width=True, key="change_role_mode"):
+        st.session_state.user_role = ""
+        st.session_state.role_gate_completed = False
+        st.rerun()
+
+
 # =============================================================================
 # NAVIGATION
 # =============================================================================
 def set_active_section(section: str) -> None:
-    if section not in SECTIONS:
-        section = DEFAULT_SECTION
+    visible_sections = get_visible_sections()
+    if section not in visible_sections:
+        section = visible_sections[0] if visible_sections else DEFAULT_SECTION
     previous = st.session_state.get("active_section", DEFAULT_SECTION)
     st.session_state.active_section = section
     if previous != section:
@@ -1390,6 +1527,8 @@ def render_active_section() -> None:
         render_physio_page()
     elif section == "Explore":
         render_explore_section()
+    elif section == "Organizations":
+        render_organizations_section()
     else:
         st.warning("Unknown section selected.")
         set_active_section(DEFAULT_SECTION)
@@ -1444,8 +1583,11 @@ def render_side_gallery_navigation() -> None:
         st.markdown("<div class='sportze-sidebar-title'>Sportze.AI</div>", unsafe_allow_html=True)
         st.markdown("<div class='sportze-sidebar-caption'>Section gallery</div>", unsafe_allow_html=True)
 
+        render_role_switcher()
+        st.divider()
+
         current = st.session_state.get("active_section", DEFAULT_SECTION)
-        for section in SECTIONS:
+        for section in get_visible_sections():
             label = section
             if st.button(
                 label,
@@ -1492,9 +1634,12 @@ def main() -> None:
     inject_css()
     process_google_oauth_callback()
     expose_profile_for_modules()
-    render_side_gallery_navigation()
 
     render_topbar()
+    if not render_role_gate():
+        return
+
+    render_side_gallery_navigation()
 
     render_default_training_hero()
     render_auth_status_message()
