@@ -1798,79 +1798,29 @@ def render_chat_messages() -> None:
 
 
 def render_current_session(payload: Dict[str, object]) -> None:
-    profile = payload["profile"]
-    meta = payload["meta"]
-    exercises = payload["exercises"]
+    exercises = payload.get("exercises", [])
 
-    st.subheader(payload["title"])
-    profile_bits = [
-        f"**Sport:** {profile.get('sport')}",
-        f"**Goal:** {profile.get('goal')}",
-        f"**Level:** {profile.get('level')}",
-        f"**Weekly frequency:** {profile.get('weekly_target')}",
-        f"**Planned duration:** {meta.get('adjusted_duration')} min",
-    ]
-    if "training_alone" in profile:
-        if bool(profile.get("training_alone")):
-            profile_bits.append("**Training format:** Alone")
-        else:
-            profile_bits.append(f"**Training format:** With {profile.get('training_partners_count', 1)} other people")
-    if profile.get("team_name"):
-        profile_bits.insert(1, f"**Team:** {profile.get('team_name')}")
-    st.write(" | ".join(profile_bits))
+    st.subheader(payload.get("title", "Training session"))
+    st.markdown("### Session")
 
-    caption_bits = [f"Session type: {meta.get('session_type')}", f"Equipment: {profile.get('equipment_level')}"]
-    if profile.get("season_phase"):
-        caption_bits.append(f"Season phase: {profile.get('season_phase')}")
-    if meta.get("primary_focus_inferred"):
-        caption_bits.append(f"Training focus inferred: {meta.get('primary_focus_inferred')}")
-    st.caption(" | ".join(caption_bits))
-    if meta.get("similarity_template_used"):
-        st.info(
-            f"Adaptation mode: {profile.get('sport')} is being trained through the "
-            f"{meta.get('similarity_template_used')} template because it is closest in movement demands: "
-            f"{meta.get('similarity_reason')}."
-        )
-    if meta.get("gym_focus_template"):
-        st.info(f"Gym sport-focus mode: this gym session is adapted to support {meta.get('gym_focus_sport')} using the {meta.get('gym_focus_template')} template.")
-    if meta.get("similarity_template_used"):
-        st.info(
-            f"Sportze.AI adaptation mode: {profile.get('sport')} is being trained with the closest template: "
-            f"{meta.get('similarity_template_used')}. Reason: {meta.get('similarity_reason')}. "
-            f"Adaptation: {meta.get('similarity_adaptation')}."
-        )
-    if meta.get("gym_focus_template"):
-        st.info(f"Gym sport-focus mode: this gym session is adapted for {meta.get('gym_focus_sport')} using the {meta.get('gym_focus_template')} template.")
+    if not exercises:
+        st.info("No exercises were generated for this session.")
+        return
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Planned minutes", meta.get("adjusted_duration"))
-    c2.metric("Estimated load", estimate_session_load(str(profile.get("level", "Intermediate")), int(meta.get("adjusted_duration", 75)), bool(profile.get("pain_flag")), bool(profile.get("needs_low_impact"))))
-    c3.metric("Exercises / blocks", len(exercises))
-
-    notes = str(profile.get("notes", "")).strip()
-    if notes:
-        st.info(f"Context notes considered: {notes}")
-    if bool(profile.get("pain_flag")):
-        pain_location = str(profile.get("pain_location", "not specified")).strip() or "not specified"
-        pain_scale = str(profile.get("pain_scale", "not specified"))
-        st.warning(f"Pain/discomfort flagged: {pain_location}, pain level {pain_scale}/10. Reduce aggressive loading if symptoms change mechanics or movement quality.")
-    if bool(profile.get("competition_soon")):
-        st.warning("Competition proximity flagged: the session was kept sharper and less fatigue-heavy.")
-
-    st.markdown("### Training blocks")
     for idx, ex in enumerate(exercises, start=1):
-        with st.expander(f"{idx}. {ex['name']}", expanded=idx <= 3):
-            st.markdown(f"**Category:** {ex['category']}")
-            st.markdown(f"**Prescription:** {ex['prescription']}")
-            if ex.get("planned_sets") and ex.get("planned_reps"):
-                st.markdown(f"**Planned summary target:** {ex['planned_sets']} sets x {ex['planned_reps']} reps")
-            st.markdown(f"**Purpose:** {ex['purpose']}")
-            st.markdown(f"**Planned block duration:** ~{ex['planned_block_minutes']} minutes")
-            coaching_points = ex.get("coaching_points") or []
-            if coaching_points:
-                st.markdown("**Coaching points:**")
-                for point in coaching_points:
-                    st.write(f"- {point}")
+        name = str(ex.get("name", f"Exercise {idx}")).strip() or f"Exercise {idx}"
+        prescription = str(ex.get("prescription", "")).strip()
+
+        if not prescription:
+            sets = ex.get("planned_sets")
+            reps = ex.get("planned_reps")
+            if sets and reps:
+                prescription = f"{sets}x{reps} reps"
+            else:
+                prescription = "Follow the planned reps/time for this block."
+
+        st.markdown(f"**{idx}. {name}**")
+        st.markdown(f"- {prescription}")
 
 def render_training_summary_panel(payload: Dict[str, object], on_persist: Optional[Callable[[], None]]) -> None:
     if not is_gym_session(payload):
@@ -2160,4 +2110,3 @@ def get_all_session_options_for_sport(sport_text: str) -> Dict[str, object]:
 
 if __name__ == "__main__":
     render_training_generator_section()
-
