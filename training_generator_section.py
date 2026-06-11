@@ -66,7 +66,7 @@ GOALS = [
 
 LEVELS = ["Beginner", "Intermediate", "Advanced", "Elite"]
 GYM_LEVELS = ["Beginner", "Intermediate", "Advanced", "Experienced"]
-SESSION_TYPES = ["Balanced Session", "Technical Priority", "Physical Priority", "Competition Week"]
+SESSION_TYPES = ["Balanced Session", "Technical Priority", "Physical Priority", "Intense Session"]
 GYM_SESSION_TYPES = ["Balanced Session", "Technical Priority", "Physical Priority", "Intense Session"]
 GYM_GOALS = ["General Fitness", "Hypertrophy", "Fat Loss", "Athletic Performance"]
 EQUIPMENT_LEVELS = ["Minimal", "Basic", "Medium", "Competitive", "Elite"]
@@ -82,10 +82,11 @@ KNOWN_TEAM_SPORTS = {
 KNOWN_INDIVIDUAL_SPORTS = {
     "tennis", "running", "athletics", "track", "swimming", "gym", "fitness", "weightlifting", "rowing",
     "boxing", "judo", "taekwondo", "karate", "wrestling", "golf", "surfing", "cycling", "triathlon",
-    "badminton", "table tennis", "skateboarding",
+    "badminton", "table tennis", "skateboarding", "calisthenics", "calistenia", "street workout",
 }
 
 GYM_ALIASES = {"gym", "fitness", "weight training", "bodybuilding", "academia", "musculacao", "musculação"}
+CALISTHENICS_ALIASES = {"calisthenics", "calistenia", "bodyweight training", "body weight training", "street workout"}
 COMMON_BOOL_YES = {"yes", "y", "true", "1", "sim", "s", "yeah", "yep", "sure", "ok", "okay"}
 COMMON_BOOL_NO = {"no", "n", "false", "0", "nao", "não", "nope", "nah"}
 COMMON_ANSWER_ALIASES = {
@@ -180,6 +181,34 @@ SPORT_LIBRARY: Dict[str, Dict[str, List[Exercise]]] = {
             Exercise("Cooldown stretch", "Recovery", "1-2 cooldown blocks", "Recovery.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
         ],
     },
+    "Calisthenics": {
+        "Warm-Up": [
+            Exercise("Joint mobility flow", "Warm-Up", "2x45sec per area", "Prepare wrists, shoulders, hips, knees, and ankles for bodyweight work.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Scapular activation + hollow hold prep", "Warm-Up", "3x10 reps + 3x20sec", "Prepare upper body and core tension for calisthenics hypertrophy.", ["Bodyweight"], ["Low"], ["Movement Quality", "Strength"], ["All"], ["All"], ["All"], 0.9),
+        ],
+        "Technical": [
+            Exercise("Tempo push-up technique", "Technical", "3x10 reps", "Build controlled pushing mechanics with bodyweight only.", ["Bodyweight"], ["Moderate"], ["Technical Quality", "Strength"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Bodyweight squat tempo practice", "Technical", "3x15 reps", "Improve control and depth before harder lower-body variations.", ["Bodyweight"], ["Moderate"], ["Technical Quality", "Strength"], ["All"], ["All"], ["All"], 0.95),
+        ],
+        "Physical": [
+            Exercise("Push-up", "Physical", "4x12 reps", "Bodyweight hypertrophy for chest, shoulders, and triceps.", ["Bodyweight"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.15),
+            Exercise("Pike push-up", "Physical", "4x10 reps", "Bodyweight hypertrophy for shoulders and triceps.", ["Bodyweight"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.1),
+            Exercise("Chair dip or bench dip", "Physical", "4x12 reps", "Bodyweight hypertrophy for triceps and upper-body pushing strength.", ["Bodyweight", "Chair/Bench"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.0),
+            Exercise("Bodyweight squat", "Physical", "4x20 reps", "Lower-body hypertrophy using bodyweight volume.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.1),
+            Exercise("Bulgarian split squat", "Physical", "4x12 reps each side", "Single-leg bodyweight hypertrophy for quads and glutes.", ["Bodyweight", "Chair/Bench"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.15),
+            Exercise("Reverse lunge", "Physical", "3x14 reps each side", "Bodyweight lower-body hypertrophy and control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 1.0),
+            Exercise("Glute bridge", "Physical", "4x15 reps", "Bodyweight posterior-chain hypertrophy.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 0.95),
+            Exercise("Calf raise", "Physical", "4x20 reps", "Bodyweight calf hypertrophy and ankle durability.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+            Exercise("Plank", "Physical", "3x45sec", "Core strength and body-line control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+            Exercise("Hollow body hold", "Physical", "3x30sec", "Core tension for calisthenics control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+        ],
+        "Tactical": [
+            Exercise("Bodyweight hypertrophy circuit", "Tactical", "3 rounds", "Simple circuit format for bodyweight hypertrophy and training flow.", ["Bodyweight"], ["High"], ["Conditioning", "Strength"], ["All"], ["All"], ["All"], 1.0),
+        ],
+        "Recovery": [
+            Exercise("Full-body stretch", "Recovery", "2x30sec per stretch", "Reduce stiffness after bodyweight hypertrophy training.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
+        ],
+    },
     "Soccer": {
         "Warm-Up": [
             Exercise("Jog + mobility flow", "Warm-Up", "6 minutes easy jog + mobility flow", "Raise body temperature and open hips/ankles.", ["Bodyweight", "Open space"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.1),
@@ -244,10 +273,39 @@ SPORT_DURATION_STYLE = {
     "Soccer": {"short": 6, "standard": 7, "long": 8},
     "Tennis": {"short": 5, "standard": 6, "long": 7},
     "Gym": {"short": 5, "standard": 6, "long": 7},
+    "Calisthenics": {"short": 5, "standard": 6, "long": 7},
     "default": {"short": 5, "standard": 6, "long": 7},
 }
 
 SPORT_BLUEPRINTS = {
+    "Calisthenics": {
+        "Warm-Up": [
+            Exercise("Joint mobility flow", "Warm-Up", "2x45sec per area", "Prepare wrists, shoulders, hips, knees, and ankles for bodyweight work.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Scapular activation + hollow hold prep", "Warm-Up", "3x10 reps + 3x20sec", "Prepare upper body and core tension for calisthenics hypertrophy.", ["Bodyweight"], ["Low"], ["Movement Quality", "Strength"], ["All"], ["All"], ["All"], 0.9),
+        ],
+        "Technical": [
+            Exercise("Tempo push-up technique", "Technical", "3x10 reps", "Build controlled pushing mechanics with bodyweight only.", ["Bodyweight"], ["Moderate"], ["Technical Quality", "Strength"], ["All"], ["All"], ["All"], 1.0),
+            Exercise("Bodyweight squat tempo practice", "Technical", "3x15 reps", "Improve control and depth before harder lower-body variations.", ["Bodyweight"], ["Moderate"], ["Technical Quality", "Strength"], ["All"], ["All"], ["All"], 0.95),
+        ],
+        "Physical": [
+            Exercise("Push-up", "Physical", "4x12 reps", "Bodyweight hypertrophy for chest, shoulders, and triceps.", ["Bodyweight"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.15),
+            Exercise("Pike push-up", "Physical", "4x10 reps", "Bodyweight hypertrophy for shoulders and triceps.", ["Bodyweight"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["Intermediate", "Advanced", "Elite"], ["All"], 1.1),
+            Exercise("Chair dip or bench dip", "Physical", "4x12 reps", "Bodyweight hypertrophy for triceps and upper-body pushing strength.", ["Bodyweight", "Chair/Bench"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.0),
+            Exercise("Bodyweight squat", "Physical", "4x20 reps", "Lower-body hypertrophy using bodyweight volume.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.1),
+            Exercise("Bulgarian split squat", "Physical", "4x12 reps each side", "Single-leg bodyweight hypertrophy for quads and glutes.", ["Bodyweight", "Chair/Bench"], ["Moderate", "High"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 1.15),
+            Exercise("Reverse lunge", "Physical", "3x14 reps each side", "Bodyweight lower-body hypertrophy and control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 1.0),
+            Exercise("Glute bridge", "Physical", "4x15 reps", "Bodyweight posterior-chain hypertrophy.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 0.95),
+            Exercise("Calf raise", "Physical", "4x20 reps", "Bodyweight calf hypertrophy and ankle durability.", ["Bodyweight"], ["Moderate"], ["Strength"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+            Exercise("Plank", "Physical", "3x45sec", "Core strength and body-line control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+            Exercise("Hollow body hold", "Physical", "3x30sec", "Core tension for calisthenics control.", ["Bodyweight"], ["Moderate"], ["Strength", "Movement Quality"], ["Hypertrophy"], ["All"], ["All"], 0.8),
+        ],
+        "Tactical": [
+            Exercise("Bodyweight hypertrophy circuit", "Tactical", "3 rounds", "Simple circuit format for bodyweight hypertrophy and training flow.", ["Bodyweight"], ["High"], ["Conditioning", "Strength"], ["All"], ["All"], ["All"], 1.0),
+        ],
+        "Recovery": [
+            Exercise("Full-body stretch", "Recovery", "2x30sec per stretch", "Reduce stiffness after bodyweight hypertrophy training.", ["Bodyweight"], ["Low"], ["Movement Quality"], ["All"], ["All"], ["All"], 0.75),
+        ],
+    },
     "Soccer": {
         "Balanced Session": {"Warm-Up": 2, "Technical": 2, "Physical": 2, "Tactical": 1, "Recovery": 1},
         "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
@@ -266,6 +324,13 @@ SPORT_BLUEPRINTS = {
         "Physical Priority": {"Warm-Up": 1, "Technical": 0, "Physical": 4, "Tactical": 0, "Recovery": 1},
         "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 2, "Tactical": 0, "Recovery": 1},
     },
+    "Calisthenics": {
+        "Balanced Session": {"Warm-Up": 1, "Technical": 1, "Physical": 3, "Tactical": 0, "Recovery": 1},
+        "Technical Priority": {"Warm-Up": 1, "Technical": 2, "Physical": 2, "Tactical": 0, "Recovery": 1},
+        "Physical Priority": {"Warm-Up": 1, "Technical": 0, "Physical": 5, "Tactical": 0, "Recovery": 1},
+        "Intense Session": {"Warm-Up": 1, "Technical": 0, "Physical": 5, "Tactical": 1, "Recovery": 1},
+        "Competition Week": {"Warm-Up": 1, "Technical": 1, "Physical": 2, "Tactical": 0, "Recovery": 1},
+    },
 }
 
 DEFAULT_BLUEPRINTS = {
@@ -273,6 +338,7 @@ DEFAULT_BLUEPRINTS = {
     "Technical Priority": {"Warm-Up": 2, "Technical": 3, "Physical": 1, "Tactical": 1, "Recovery": 1},
     "Physical Priority": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
     "Competition Week": {"Warm-Up": 2, "Technical": 2, "Physical": 1, "Tactical": 1, "Recovery": 1},
+    "Intense Session": {"Warm-Up": 2, "Technical": 1, "Physical": 3, "Tactical": 1, "Recovery": 1},
 }
 
 
@@ -615,6 +681,7 @@ SPORT_TEMPLATE_ALIASES: Dict[str, str] = {
     "gym": "Gym", "fitness": "Gym", "academia": "Gym", "musculacao": "Gym", "musculação": "Gym",
     "bodybuilding": "Weightlifting", "weight training": "Gym", "lifting": "Weightlifting",
     "gaming": "Esports", "e sports": "Esports", "esport": "Esports", "esports": "Esports",
+    "calisthenics": "Calisthenics", "calistenia": "Calisthenics", "street workout": "Calisthenics", "bodyweight training": "Calisthenics", "body weight training": "Calisthenics",
 }
 
 TEAM_TEMPLATE_SPORTS = {
@@ -859,9 +926,7 @@ def match_supported_sport(sport_text: str) -> Optional[str]:
 def get_frequency_prompt(goal: str, level: str, sport: str = "") -> str:
     if is_gym_sport(sport):
         return "How many times do you train per week?"
-    if goal == "Learn how to play" or level == "Beginner":
-        return "How many times do you play sports per week?"
-    return "How many times do you train this sport per week?"
+    return "How many times do you train this a week?"
 
 
 def match_option_forgiving(answer: str, options: List[str]) -> Optional[str]:
@@ -921,13 +986,7 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
     is_professional = bool(is_professional_value is True or str(is_professional_value).strip().lower() in {"yes", "true", "1"})
     should_ask_name = (not logged_in) and (not saved_name) and is_professional and not gym_mode
 
-    flow = [{"key": "sport", "prompt": "What physical activity/sport do you play?", "type": "text"}]
-
-    if not gym_mode:
-        flow.append({"key": "sport_type", "prompt": "Is this an individual sport or a team sport? You can answer: Individual Sport or Team Sport.", "type": "select", "options": ["Individual Sport", "Team Sport"], "skip_if_detected": True})
-
-    if sport_type == "Team Sport" and not gym_mode:
-        flow.append({"key": "team_name", "prompt": "What team do you play for?", "type": "text"})
+    flow = [{"key": "sport", "prompt": "What do you train or want to start training?", "type": "text"}]
 
     if gym_mode:
         flow.append({"key": "gym_sport_focus_flag", "prompt": "Do you want this gym session to be focused on another sport? Answer Yes or No.", "type": "bool"})
@@ -949,45 +1008,41 @@ def get_question_flow(profile: Dict[str, str]) -> List[Dict[str, object]]:
         ])
     else:
         flow.extend([
-            {"key": "goal", "prompt": "What is your main goal?", "type": "select", "options": GOALS},
-            {"key": "level", "prompt": "What is your current level?", "type": "select", "options": LEVELS},
-            {"key": "training_alone", "prompt": "Will you train alone? Answer Yes or No.", "type": "bool"},
+            {"key": "goal", "prompt": "What's your main goal?", "type": "select", "options": GOALS},
         ])
-        if profile.get("training_alone") is False:
-            flow.append({"key": "training_partners_count", "prompt": "How many other people will train with you?", "type": "int", "min": 1, "max": 99})
+
+        if profile.get("goal") == "Learn how to play":
+            profile["level"] = "Beginner"
+        else:
+            flow.append({"key": "level", "prompt": "What's your current level?", "type": "select", "options": LEVELS})
+
+        flow.append({"key": "training_alone", "prompt": "Will you train alone? Answer Yes or No.", "type": "bool"})
+
+        if profile.get("level") == "Beginner":
+            flow.append({"key": "already_train_sport", "prompt": "Do you already train this sport? Answer Yes or No.", "type": "bool"})
+
+        if profile.get("level") != "Beginner" or profile.get("already_train_sport") is True:
+            flow.append({"key": "weekly_target", "prompt": "How many times do you train this a week?", "type": "int", "min": 1, "max": 7})
+
         flow.extend([
-            {"key": "weekly_target", "prompt": get_frequency_prompt(profile.get("goal", ""), profile.get("level", ""), sport), "type": "int", "min": 1, "max": 7},
-            {"key": "session_type", "prompt": "What kind of session do you want today?", "type": "select", "options": SESSION_TYPES},
-            {"key": "duration", "prompt": "How many minutes should this session last?", "type": "int", "min": 30, "max": 180},
+            {"key": "session_type", "prompt": "What kind of session do you want? You can answer: balanced, technical, physical, or intense.", "type": "select", "options": SESSION_TYPES},
+            {"key": "duration", "prompt": "How many minutes will this session last?", "type": "int", "min": 30, "max": 180},
             {"key": "equipment_level", "prompt": "What is your level of equipment available?", "type": "select", "options": EQUIPMENT_LEVELS},
+            {"key": "pain_flag", "prompt": "Do you feel any pain or discomfort today? Answer Yes or No.", "type": "bool"},
         ])
-        if competitive_level:
-            flow.append({"key": "season_phase", "prompt": "What season phase are you in?", "type": "select", "options": SEASON_PHASES})
-        flow.append({"key": "pain_flag", "prompt": "Is there pain or discomfort today? Answer Yes or No.", "type": "bool"})
 
     if bool(profile.get("pain_flag", False)):
-        flow.extend([
-            {"key": "pain_location", "prompt": "Where does it hurt?", "type": "text"},
-            {"key": "pain_scale", "prompt": "On a scale from 1 to 10, how much does it hurt?", "type": "int", "min": 1, "max": 10},
-        ])
+        if gym_mode:
+            flow.extend([
+                {"key": "pain_location", "prompt": "Where does it hurt?", "type": "text"},
+                {"key": "pain_scale", "prompt": "On a scale from 1 to 10, how much does it hurt?", "type": "int", "min": 1, "max": 10},
+            ])
+        flow.append({"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"})
 
-    flow.append({"key": "needs_low_impact", "prompt": "Do you prefer lower-impact loading today? Answer Yes or No.", "type": "bool"})
-
-    if competitive_level and not gym_mode:
-        flow.append({"key": "competition_soon", "prompt": "Do you have a competition or match in the next 3 days? Answer Yes or No.", "type": "bool"})
 
     flow.append({"key": "notes", "prompt": "Any extra notes?", "type": "text"})
     if bool(profile.get("notes_pending", False)):
         flow.append({"key": "notes_detail", "prompt": "What notes?", "type": "text"})
-
-    if (not gym_mode) and competitive_level:
-        insert_idx = 5 if sport_type == "Team Sport" else 4
-        flow.insert(insert_idx, {"key": "is_professional", "prompt": "Are you professional in this sport? Answer Yes or No.", "type": "bool"})
-
-    if should_ask_name:
-        name_prompt = "What is your name?"
-        insert_idx = 6 if sport_type == "Team Sport" else 5
-        flow.insert(insert_idx, {"key": "athlete_name", "prompt": name_prompt, "type": "text"})
 
     cleaned_flow = []
     seen_keys = set()
@@ -1107,6 +1162,9 @@ def update_profile_from_answer(key: str, value: object) -> None:
             st.session_state.training_profile["sport_type"] = detected
     if key == "goal":
         st.session_state.goal = value
+        if value == "Learn how to play":
+            st.session_state.training_profile["level"] = "Beginner"
+            st.session_state.level = "Beginner"
     if key == "level":
         st.session_state.level = value
     if key == "sport":
@@ -1133,6 +1191,8 @@ def update_profile_from_answer(key: str, value: object) -> None:
         st.session_state.training_alone = value
     if key == "training_partners_count":
         st.session_state.training_partners_count = value
+    if key == "already_train_sport":
+        st.session_state.already_train_sport = value
 
 
 def parse_free_description_to_profile(description: str) -> Dict[str, object]:
@@ -1382,6 +1442,8 @@ def allocate_block_minutes(session: List[Exercise], duration: int, session_type:
 
 
 def infer_primary_focus(goal: str, session_type: str, sport: str) -> str:
+    if match_supported_sport(sport) == "Calisthenics":
+        return "Strength"
     if match_supported_sport(sport) == "Gym" or is_gym_sport(sport):
         if goal == "Hypertrophy":
             return "Strength"
