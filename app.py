@@ -25,13 +25,14 @@ from physio_section import render_physio_section
 from counseling_section import render_counseling_section
 from explore_section import render_explore_section
 from Organizations import render_organizations_section
+from sports_ai_section import render_sports_ai_section
 
 
 # =============================================================================
 # SPORTZE.AI APP SHELL
 # =============================================================================
 # What changed in this version:
-# - Training Generator is the default and opens immediately.
+# - Sports AI is the default and opens immediately.
 # - No homepage explanatory paragraph.
 # - Sidebar no longer contains module navigation, product structure, or profile snapshot.
 # - Login is now in the top-right of the main screen.
@@ -63,9 +64,10 @@ from Organizations import render_organizations_section
 # BASIC CONFIG
 # =============================================================================
 APP_TITLE = "Sportze.AI"
-DEFAULT_SECTION = "Training Generator"
+DEFAULT_SECTION = "Sports AI"
 
 SECTIONS = [
+    "Sports AI",
     "Training Generator",
     "Video Review",
     "Counseling",
@@ -76,6 +78,7 @@ SECTIONS = [
 
 # Module labels stay text-only for a clean interface.
 SECTION_ICONS: Dict[str, str] = {
+    "Sports AI": "",
     "Training Generator": "",
     "Video Review": "",
     "Counseling": "",
@@ -85,6 +88,7 @@ SECTION_ICONS: Dict[str, str] = {
 }
 
 SECTION_ROUTES = {
+    "Sports AI": "sports-ai",
     "Training Generator": "training",
     "Video Review": "video",
     "Counseling": "counseling",
@@ -401,6 +405,15 @@ def init_state() -> None:
         "show_local_email_login": False,
         "user_role": "",
         "role_gate_completed": False,
+        "sports_ai_messages": [],
+        "sports_ai_pending_intent": {},
+        "sportze_intake_context": {},
+        "last_sports_ai_intent": {},
+        "training_prefill": {},
+        "training_skip_questions": [],
+        "physio_prefill": {},
+        "counseling_prefill": {},
+        "video_review_prefill": {},
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -1517,7 +1530,9 @@ def render_physio_page() -> None:
 def render_active_section() -> None:
     section = st.session_state.get("active_section", DEFAULT_SECTION)
 
-    if section == "Training Generator":
+    if section == "Sports AI":
+        render_sports_ai_section(navigate_to=set_active_section)
+    elif section == "Training Generator":
         render_training_page()
     elif section == "Video Review":
         render_video_page()
